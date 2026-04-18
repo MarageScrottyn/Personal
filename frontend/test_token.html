@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Token</title>
+</head>
+<body>
+    <h1>Token Test</h1>
+    <div id="token-info"></div>
+    
+    <script>
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        document.getElementById('token-info').innerHTML = `
+            <p>Access Token: ${accessToken ? 'Present' : 'Missing'}</p>
+            <p>Refresh Token: ${refreshToken ? 'Present' : 'Missing'}</p>
+            <p>Token length: ${accessToken ? accessToken.length : 0}</p>
+        `;
+        
+        console.log('Access Token:', accessToken);
+        console.log('Refresh Token:', refreshToken);
+    </script>
+</body>
+</html>

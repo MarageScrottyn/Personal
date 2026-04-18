@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Check</title>
+</head>
+<body>
+    <h1>Token Check</h1>
+    <div id="token-info"></div>
+    <button onclick="checkToken()">Check Token</button>
+    <button onclick="login()">Login</button>
+    
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        function checkToken() {
+            const accessToken = localStorage.getItem('accessToken');
+            const refreshToken = localStorage.getItem('refreshToken');
+            
+            document.getElementById('token-info').innerHTML = `
+                <p>Access Token: ${accessToken ? 'Present' : 'Missing'}</p>
+                <p>Refresh Token: ${refreshToken ? 'Present' : 'Missing'}</p>
+                <p>Token length: ${accessToken ? accessToken.length : 0}</p>
+            `;
+            
+            console.log('Access Token:', accessToken);
+            console.log('Refresh Token:', refreshToken);
+        }
+        
+        function login() {
+            axios.post('/api/auth/login/', {
+                username: 'testuser',
+                password: 'test123'
+            })
+            .then(response => {
+                console.log('Login response:', response.data);
+                document.getElementById('token-info').innerHTML = `
+                    <p>Login success!</p>
+                    <p>Access Token: ${response.data.access.substring(0, 50)}...</p>
+                    <p>User type: ${response.data.user.user_type}</p>
+                `;
+                // 保存token到localStorage
+                localStorage.setItem('accessToken', response.data.access);
+                localStorage.setItem('refreshToken', response.data.refresh);
+            })
+            .catch(error => {
+                console.error('Login error:', error);
+                document.getElementById('token-info').innerHTML = `
+                    <p>Login failed: ${error.response?.data?.error || 'Unknown error'}</p>
+                `;
+            });
+        }
+        
+        // 页面加载时检查token
+        window.onload = checkToken;
+    </script>
+</body>
+</html>

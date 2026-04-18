@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Login</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Check Login Status</h1>
+    <div id="login-status"></div>
+    <button onclick="checkLogin()">Check Login</button>
+    <button onclick="login()">Login</button>
+    <button onclick="clearTokens()">Clear Tokens</button>
+    
+    <script>
+        function checkLogin() {
+            const accessToken = localStorage.getItem('accessToken');
+            const refreshToken = localStorage.getItem('refreshToken');
+            
+            document.getElementById('login-status').innerHTML = `
+                <p>Access Token: ${accessToken ? 'Present' : 'Missing'}</p>
+                <p>Refresh Token: ${refreshToken ? 'Present' : 'Missing'}</p>
+                <p>Token length: ${accessToken ? accessToken.length : 0}</p>
+            `;
+            
+            console.log('Access Token:', accessToken);
+            console.log('Refresh Token:', refreshToken);
+            
+            // 测试API调用
+            if (accessToken) {
+                axios.get('/api/categories/', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                })
+                .then(response => {
+                    console.log('Categories:', response.data);
+                    document.getElementById('login-status').innerHTML += `
+                        <p>API Call: Success</p>
+                        <p>Categories count: ${response.data.length}</p>
+                    `;
+                })
+                .catch(error => {
+                    console.error('API error:', error);
+                    document.getElementById('login-status').innerHTML += `
+                        <p>API Call: Failed</p>
+                        <p>Error: ${error.response?.data?.detail || 'Unknown error'}</p>
+                    `;
+                });
+            }
+        }
+        
+        function login() {
+            axios.post('/api/auth/login/', {
+                username: 'testuser',
+                password: 'test123'
+            })
+            .then(response => {
+                console.log('Login response:', response.data);
+                document.getElementById('login-status').innerHTML = `
+                    <p>Login success!</p>
+                    <p>Access Token: ${response.data.access.substring(0, 50)}...</p>
+                    <p>User type: ${response.data.user.user_type}</p>
+                `;
+                // 保存token到localStorage
+                localStorage.setItem('accessToken', response.data.access);
+                localStorage.setItem('refreshToken', response.data.refresh);
+            })
+            .catch(error => {
+                console.error('Login error:', error);
+                document.getElementById('login-status').innerHTML = `
+                    <p>Login failed: ${error.response?.data?.error || 'Unknown error'}</p>
+                `;
+            });
+        }
+        
+        function clearTokens() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            document.getElementById('login-status').innerHTML = '<p>Tokens cleared</p>';
+            console.log('Tokens cleared');
+        }
+        
+        // 页面加载时检查登录状态
+        window.onload = checkLogin;
+    </script>
+</body>
+</html>

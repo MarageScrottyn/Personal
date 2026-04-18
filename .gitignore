@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Django
+*.log
+db.sqlite3
+*.pot
+*.pyc
+
+# Django media (uploaded files)
+media/comics/
+media/videos/
+media/uploads/
+!media/.gitkeep
+
+# Node
+node_modules/
+.npm
+.yarn
+dist/
+dist-ssr/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+.coverage
+htmlcov/
+*.cover
+
+# Misc
+*.bak
+*.tmp

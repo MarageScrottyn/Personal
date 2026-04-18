@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Login Test</h1>
+    <div id="login-result"></div>
+    
+    <script>
+        // 测试登录
+        axios.post('/api/auth/login/', {
+            username: 'testuser',
+            password: 'test123'
+        })
+        .then(response => {
+            console.log('Login response:', response.data);
+            document.getElementById('login-result').innerHTML = `
+                <p>Login success!</p>
+                <p>Access Token: ${response.data.access.substring(0, 50)}...</p>
+                <p>User type: ${response.data.user.user_type}</p>
+            `;
+            // 保存token到localStorage
+            localStorage.setItem('accessToken', response.data.access);
+            localStorage.setItem('refreshToken', response.data.refresh);
+        })
+        .catch(error => {
+            console.error('Login error:', error);
+            document.getElementById('login-result').innerHTML = `
+                <p>Login failed: ${error.response?.data?.error || 'Unknown error'}</p>
+            `;
+        });
+    </script>
+</body>
+</html>
