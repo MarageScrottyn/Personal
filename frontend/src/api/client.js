@@ -4,15 +4,17 @@ const API_BASE = '/api'
 
 const apiClient = axios.create({
   baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  timeout: 300000  // 5分钟超时
 })
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  // 当请求体是FormData时，不设置Content-Type，让axios自动处理
+  if (!(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json'
   }
   console.log('API Request:', config.url)
   return config

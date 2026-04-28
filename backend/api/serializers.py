@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.conf import settings
 from django.contrib.auth.models import User
 from .models import Category, Comic, ComicChapter, Video, Profile, Note, CloudFile
 
@@ -97,11 +98,12 @@ class ComicChapterReadSerializer(serializers.ModelSerializer):
 
 class ComicListSerializer(serializers.ModelSerializer):
     category_names = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
     cover_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Comic
-        fields = ['id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'author', 'created_at']
+        fields = ['id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'categories', 'author', 'created_at']
 
     def get_cover_image(self, obj):
         if obj.cover_image:
@@ -113,7 +115,6 @@ class ComicListSerializer(serializers.ModelSerializer):
             if cover_path.startswith('media/'):
                 return '/' + cover_path
             return '/media/' + cover_path
-        # 当没有封面图片时，使用章节图片中的第一章作为封面
         chapters = obj.chapters.all()
         if chapters:
             first_chapter = chapters.first()
@@ -132,6 +133,9 @@ class ComicListSerializer(serializers.ModelSerializer):
 
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]
+
+    def get_categories(self, obj):
+        return [category.id for category in obj.categories.all()]
 
 class ComicDetailSerializer(serializers.ModelSerializer):
     chapters = ComicChapterSerializer(many=True)
@@ -173,60 +177,78 @@ class ComicDetailSerializer(serializers.ModelSerializer):
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]
 
+class ComicCreateUpdateSerializer(serializers.ModelSerializer):
+    categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True)
+    cover_image = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    chapters = ComicChapterSerializer(many=True, required=False)
+
+    class Meta:
+        model = Comic
+        fields = ['title', 'slug', 'description', 'cover_image', 'categories', 'author', 'chapters']
+
     def create(self, validated_data):
         chapters_data = validated_data.pop('chapters', [])
         categories = validated_data.pop('categories', [])
-        
-        # 当没有上传封面时，使用章节图片中的第一章作为封面
-        if not validated_data.get('cover_image') and chapters_data:
-            first_chapter = chapters_data[0]
-            if first_chapter.get('images'):
-                validated_data['cover_image'] = first_chapter['images'][0]
-        
+
+        # 处理封面图片路径
+        cover_image_path = validated_data.pop('cover_image', None)
+        if cover_image_path:
+            if cover_image_path.startswith('/media/'):
+                cover_image_path = cover_image_path[7:]
+            elif cover_image_path.startswith('media/'):
+                cover_image_path = cover_image_path[6:]
+            validated_data['cover_image'] = cover_image_path
+
         comic = super().create(validated_data)
-
-        # 添加分类
-        comic.categories.set(categories)
-
+        
+        # 设置分类
+        if categories:
+            comic.categories.set(categories)
+        
+        # 创建章节
         for chapter_data in chapters_data:
             ComicChapter.objects.create(comic=comic, **chapter_data)
-
+        
         return comic
 
     def update(self, instance, validated_data):
         chapters_data = validated_data.pop('chapters', [])
         categories = validated_data.pop('categories', [])
 
-        # 当没有上传封面时，使用章节图片中的第一章作为封面
-        if 'cover_image' not in validated_data and chapters_data:
-            first_chapter = chapters_data[0]
-            if first_chapter.get('images'):
-                validated_data['cover_image'] = first_chapter['images'][0]
+        # 处理封面图片路径
+        cover_image_path = validated_data.pop('cover_image', None)
+        if cover_image_path:
+            if cover_image_path.startswith('/media/'):
+                cover_image_path = cover_image_path[7:]
+            elif cover_image_path.startswith('media/'):
+                cover_image_path = cover_image_path[6:]
+            validated_data['cover_image'] = cover_image_path
 
-        # 更新漫画信息
         instance = super().update(instance, validated_data)
-
-        # 更新分类
+        
+        # 设置分类
         if categories:
             instance.categories.set(categories)
-
-        # 删除旧章节
-        instance.chapters.all().delete()
-
-        # 创建新章节
-        for chapter_data in chapters_data:
-            ComicChapter.objects.create(comic=instance, **chapter_data)
-
+        
+        # 更新章节
+        if chapters_data:
+            # 删除旧章节
+            instance.chapters.all().delete()
+            # 创建新章节
+            for chapter_data in chapters_data:
+                ComicChapter.objects.create(comic=instance, **chapter_data)
+        
         return instance
 
 class VideoListSerializer(serializers.ModelSerializer):
     category_names = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     video_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Video
-        fields = ['id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'category_names', 'duration', 'created_at']
+        fields = ['id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'category_names', 'categories', 'created_at']
 
     def get_thumbnail(self, obj):
         if not obj.thumbnail:
@@ -254,6 +276,70 @@ class VideoListSerializer(serializers.ModelSerializer):
 
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]
+
+    def get_categories(self, obj):
+        return [category.id for category in obj.categories.all()]
+
+class VideoCreateUpdateSerializer(serializers.ModelSerializer):
+    categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True)
+    thumbnail = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    video_file = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+    class Meta:
+        model = Video
+        fields = ['title', 'slug', 'description', 'thumbnail', 'video_file', 'categories']
+
+    def _convert_path_to_file(self, file_path):
+        import os
+        from django.core.files.base import ContentFile
+
+        if not file_path:
+            return None
+
+        if file_path.startswith('/media/'):
+            file_path = file_path[7:]
+        elif file_path.startswith('media/'):
+            file_path = file_path[6:]
+
+        full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        if os.path.exists(full_path):
+            with open(full_path, 'rb') as f:
+                file_content = ContentFile(f.read())
+                file_content.name = os.path.basename(file_path)
+                return file_content
+        return None
+
+    def create(self, validated_data):
+        categories = validated_data.pop('categories', [])
+
+        thumbnail_path = validated_data.pop('thumbnail', None)
+        video_file_path = validated_data.pop('video_file', None)
+
+        if thumbnail_path:
+            validated_data['thumbnail'] = self._convert_path_to_file(thumbnail_path)
+        if video_file_path:
+            validated_data['video_file'] = self._convert_path_to_file(video_file_path)
+
+        video = super().create(validated_data)
+        if categories:
+            video.categories.set(categories)
+        return video
+
+    def update(self, instance, validated_data):
+        categories = validated_data.pop('categories', [])
+
+        thumbnail_path = validated_data.pop('thumbnail', None)
+        video_file_path = validated_data.pop('video_file', None)
+
+        if thumbnail_path:
+            validated_data['thumbnail'] = self._convert_path_to_file(thumbnail_path)
+        if video_file_path:
+            validated_data['video_file'] = self._convert_path_to_file(video_file_path)
+
+        instance = super().update(instance, validated_data)
+        if categories:
+            instance.categories.set(categories)
+        return instance
 
 class VideoDetailSerializer(serializers.ModelSerializer):
     category_names = serializers.SerializerMethodField()
@@ -291,20 +377,6 @@ class VideoDetailSerializer(serializers.ModelSerializer):
 
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]
-
-    def create(self, validated_data):
-        categories = validated_data.pop('categories', [])
-        video = super().create(validated_data)
-        if categories:
-            video.categories.set(categories)
-        return video
-
-    def update(self, instance, validated_data):
-        categories = validated_data.pop('categories', [])
-        instance = super().update(instance, validated_data)
-        if categories:
-            instance.categories.set(categories)
-        return instance
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()

@@ -879,4 +879,14 @@ onMounted(fetchNotes)
     max-height: 500px;
   }
 }
+
+@media (max-width: 768px) {
+  .notes-header h1 {
+    display: none;
+  }
+  
+  .notes-header {
+    justify-content: center;
+  }
+}
 </style>

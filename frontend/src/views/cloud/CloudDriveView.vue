@@ -464,6 +464,10 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .cloud-header h2 {
+    display: none;
+  }
+  
   .cloud-header {
     flex-direction: column;
     gap: 15px;

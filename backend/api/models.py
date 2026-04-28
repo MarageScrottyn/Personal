@@ -53,11 +53,11 @@ class ComicChapter(models.Model):
 class Video(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
     thumbnail = models.ImageField(upload_to='videos/')
     video_file = models.FileField(upload_to='videos/')
     categories = models.ManyToManyField(Category, related_name='videos')
-    duration = models.IntegerField(help_text="Duration in seconds")
+    duration = models.IntegerField(help_text="Duration in seconds", default=0, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

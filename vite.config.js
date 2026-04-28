@@ -12,15 +12,14 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     open: true,
-    allowedHosts: ['.192.168.0.21', '192.168.0.21'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://192.168.0.21:8000',
         changeOrigin: true,
         secure: false
       },
       '/media': {
-        target: 'http://localhost:8000',
+        target: 'http://192.168.0.21:8000',
         changeOrigin: true,
         secure: false
       }

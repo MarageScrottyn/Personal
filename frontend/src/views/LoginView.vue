@@ -76,7 +76,17 @@ const handleLogin = async () => {
     await authStore.login(username.value, password.value)
     router.push('/comics')
   } catch (e) {
-    error.value = e.response?.data?.error || '登录失败，请检查用户名和密码'
+    const errorData = e.response?.data
+    if (errorData?.detail) {
+      error.value = errorData.detail
+    } else if (errorData?.error) {
+      error.value = errorData.error
+      if (errorData.detail) {
+        error.value += ': ' + errorData.detail
+      }
+    } else {
+      error.value = '登录失败，请检查网络连接或稍后重试'
+    }
   } finally {
     loading.value = false
   }

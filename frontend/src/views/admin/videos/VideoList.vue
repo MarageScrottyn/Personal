@@ -23,14 +23,10 @@
         <div v-for="video in videos" :key="video.id" class="video-card">
           <div class="video-thumbnail">
             <img :src="getImageUrl(video.thumbnail)" :alt="video.title" />
-            <div class="video-duration">
-              {{ formatDuration(video.duration) }}
-            </div>
           </div>
           <div class="video-info">
             <h3>{{ video.title }}</h3>
             <p class="video-category">{{ video.category_name }}</p>
-            <p class="video-duration-text">{{ formatDuration(video.duration) }}</p>
           </div>
           <div class="video-actions">
             <router-link :to="`/admin/videos/edit/${video.slug}`" class="action-btn edit">
@@ -113,12 +109,6 @@ const deleteVideo = async () => {
   } catch (error) {
     console.error('删除视频失败:', error)
   }
-}
-
-const formatDuration = (seconds) => {
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
 onMounted(() => {
@@ -241,18 +231,6 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
-.video-duration {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
 .video-info {
   padding: 15px;
 }
@@ -265,8 +243,7 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-.video-category,
-.video-duration-text {
+.video-category {
   font-size: 14px;
   color: #666;
   margin: 0 0 5px 0;
@@ -381,19 +358,28 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .video-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
   
   .list-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 15px;
-    padding: 0 15px;
+    gap: 12px;
+    padding: 0 12px;
   }
   
   .list-content {
-    padding: 0 15px;
+    padding: 0 12px;
+  }
+  
+  .create-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .btn-icon {
+    font-size: 16px;
   }
   
   .video-card {
@@ -401,25 +387,30 @@ onMounted(() => {
   }
   
   .video-thumbnail {
-    height: 160px;
+    height: 120px;
   }
   
   .video-info {
-    padding: 12px;
+    padding: 10px;
   }
   
   .video-info h3 {
-    font-size: 15px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .video-category {
+    font-size: 12px;
   }
   
   .video-actions {
-    padding: 12px;
-    gap: 8px;
+    padding: 10px;
+    gap: 6px;
   }
   
   .action-btn {
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 5px 10px;
+    font-size: 12px;
   }
   
   .confirm-dialog {
@@ -443,6 +434,29 @@ onMounted(() => {
   .btn {
     width: 100%;
     padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .video-thumbnail {
+    height: 100px;
+  }
+  
+  .list-header h2 {
+    font-size: 18px;
+  }
+  
+  .video-info h3 {
+    font-size: 13px;
+  }
+  
+  .video-category {
+    font-size: 11px;
   }
 }
 </style>

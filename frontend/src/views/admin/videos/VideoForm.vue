@@ -31,17 +31,6 @@
             />
           </div>
           <div class="form-group">
-            <label for="duration">时长 (秒)</label>
-            <input 
-              type="number" 
-              id="duration" 
-              v-model="formData.duration" 
-              required 
-              min="1"
-              placeholder="请输入视频时长"
-            />
-          </div>
-          <div class="form-group">
             <label for="category">分类</label>
             <select id="category" v-model="formData.categories" required multiple>
               <option 
@@ -59,7 +48,6 @@
             <textarea 
               id="description" 
               v-model="formData.description" 
-              required 
               placeholder="请输入视频描述" 
               rows="4"
             ></textarea>
@@ -73,7 +61,14 @@
                   ✕
                 </button>
               </div>
-              <div v-else class="upload-area">
+              <div 
+                v-else 
+                class="upload-area"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop="handleThumbnailDrop"
+                @click="triggerThumbnailUpload"
+              >
                 <span class="upload-icon">📷</span>
                 <p>点击或拖拽上传缩略图</p>
                 <input 
@@ -94,13 +89,24 @@
                   ✕
                 </button>
               </div>
-              <div v-else class="upload-area">
+              <div 
+                v-else 
+                class="upload-area"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop="handleVideoDrop"
+                @click="triggerVideoUpload"
+              >
                 <span class="upload-icon">🎬</span>
-                <p>点击或拖拽上传视频文件</p>
+                <p>点击或拖拽上传视频文件或文件夹</p>
+                <p class="upload-hint">支持：.m3u8, .mp4, .webm, .mkv, .mov, .avi 等格式</p>
                 <input 
                   type="file" 
-                  accept="video/*" 
+                  accept="video/*,.m3u8,.mp4,.webm,.mkv,.mov,.avi,.flv,.wmv,.ts" 
                   @change="handleVideoUpload"
+                  webkitdirectory
+                  directory
+                  multiple
                 />
               </div>
             </div>
@@ -149,7 +155,6 @@ const formData = ref({
   description: '',
   thumbnail: '',
   video_file: '',
-  duration: '',
   categories: []
 })
 
@@ -178,7 +183,6 @@ const fetchVideoDetail = async () => {
       description: video.description,
       thumbnail: video.thumbnail,
       video_file: video.video_file,
-      duration: video.duration,
       categories: video.categories || []
     }
   } catch (error) {
@@ -194,14 +198,22 @@ const handleThumbnailUpload = async (event) => {
   if (!file) return
   
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    loading.value = true
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', file)
     
-    // 这里需要实现图片上传API
-    // 暂时使用本地URL模拟
-    formData.value.thumbnail = URL.createObjectURL(file)
+    const response = await apiClient.post('/upload/video-thumbnail/', uploadFormData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    formData.value.thumbnail = response.data.path
   } catch (error) {
     console.error('上传缩略图失败:', error)
+    alert('上传缩略图失败，请重试')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -212,24 +224,108 @@ const removeThumbnail = () => {
 
 // 处理视频文件上传
 const handleVideoUpload = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
+  const files = Array.from(event.target.files || [])
+  if (!files || files.length === 0) return
   
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    loading.value = true
     
-    // 这里需要实现视频上传API
-    // 暂时使用本地URL模拟
-    formData.value.video_file = URL.createObjectURL(file)
+    const m3u8File = files.find(f => f.name.endsWith('.m3u8'))
+    
+    if (m3u8File && files.length > 1) {
+      // 处理m3u8文件夹上传
+      const uploadFormData = new FormData()
+      
+      files.forEach(file => {
+        uploadFormData.append('files', file)
+      })
+      
+      const response = await apiClient.post('/upload/video-folder/', uploadFormData)
+      
+      formData.value.video_file = response.data.m3u8_path
+      if (response.data.thumbnail) {
+        formData.value.thumbnail = response.data.thumbnail
+      }
+      alert('m3u8视频文件夹上传成功！')
+    } else {
+      // 处理单个文件上传
+      const file = files[0]
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+      
+      const response = await apiClient.post('/upload/video/', uploadFormData)
+      
+      formData.value.video_file = response.data.path
+      if (response.data.thumbnail) {
+        formData.value.thumbnail = response.data.thumbnail
+      }
+    }
   } catch (error) {
     console.error('上传视频失败:', error)
+    console.error('错误详情:', error.response?.data || error.message)
+    alert(`上传视频失败: ${error.response?.data?.error || error.message}`)
+  } finally {
+    loading.value = false
   }
 }
 
 // 移除视频文件
 const removeVideoFile = () => {
   formData.value.video_file = ''
+}
+
+// 触发缩略图文件选择
+const triggerThumbnailUpload = (event) => {
+  event.stopPropagation()
+  const container = event.currentTarget
+  const input = container.querySelector('input[type="file"]')
+  if (input) {
+    input.click()
+  }
+}
+
+// 触发视频文件选择
+const triggerVideoUpload = (event) => {
+  event.stopPropagation()
+  const container = event.currentTarget
+  const input = container.querySelector('input[type="file"]')
+  if (input) {
+    input.click()
+  }
+}
+
+// 处理缩略图拖拽上传
+const handleThumbnailDrop = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  const file = event.dataTransfer.files[0]
+  if (file && file.type.startsWith('image/')) {
+    const container = event.currentTarget
+    const input = container.querySelector('input[type="file"]')
+    if (input) {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(file)
+      input.files = dataTransfer.files
+      handleThumbnailUpload({ target: input })
+    }
+  }
+}
+
+// 处理视频拖拽上传
+const handleVideoDrop = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  const file = event.dataTransfer.files[0]
+  if (file && file.type.startsWith('video/')) {
+    const container = event.currentTarget
+    const input = container.querySelector('input[type="file"]')
+    if (input) {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(file)
+      input.files = dataTransfer.files
+      handleVideoUpload({ target: input })
+    }
+  }
 }
 
 // 获取文件名
@@ -246,8 +342,7 @@ const handleSubmit = async () => {
     // 确保categories是数字类型数组
     const data = {
       ...formData.value,
-      categories: formData.value.categories.map(catId => parseInt(catId)),
-      duration: parseInt(formData.value.duration)
+      categories: formData.value.categories.map(catId => parseInt(catId))
     }
     
     if (isEdit.value) {

@@ -12,8 +12,8 @@ import uuid
 from .models import Category, Comic, ComicChapter, Video, Profile, Note, CloudFile
 from .serializers import (
     UserSerializer, CategorySerializer,
-    ComicListSerializer, ComicDetailSerializer, ComicChapterSerializer,
-    VideoListSerializer, VideoDetailSerializer,
+    ComicListSerializer, ComicDetailSerializer, ComicChapterSerializer, ComicCreateUpdateSerializer,
+    VideoListSerializer, VideoDetailSerializer, VideoCreateUpdateSerializer,
     NoteSerializer, CloudFileSerializer
 )
 
@@ -36,25 +36,42 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
+
+        if not username:
+            return Response({'error': '请输入用户名', 'detail': '用户名不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not password:
+            return Response({'error': '请输入密码', 'detail': '密码不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = authenticate(username=username, password=password)
-        if user:
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
-            # 获取用户类型，如果不存在则默认为普通用户
-            user_type = 'user'
-            if hasattr(user, 'profile'):
-                user_type = user.profile.user_type
+
+        if user is None:
             return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'user_type': user_type
-                }
-            })
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+                'error': '用户名或密码错误',
+                'detail': f'无法验证用户"{username}"的凭据，请检查用户名和密码是否正确'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.is_active:
+            return Response({
+                'error': '账户已被禁用',
+                'detail': f'用户"{username}"的账户已被禁用，请联系管理员'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        user_type = 'user'
+        if hasattr(user, 'profile'):
+            user_type = user.profile.user_type
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'user_type': user_type
+            }
+        })
 
 class ComicListView(generics.ListAPIView):
     serializer_class = ComicListSerializer
@@ -64,13 +81,10 @@ class ComicListView(generics.ListAPIView):
         queryset = Comic.objects.all().order_by('-created_at')
         category_slug = self.request.query_params.get('category', None)
         
-        # 权限过滤
         if not (hasattr(self.request.user, 'profile') and self.request.user.profile.user_type == 'admin'):
-            # 普通用户只能看到包含普通权限分类的漫画
-            regular_categories = Category.objects.filter(permission_level='regular')
-            queryset = queryset.filter(categories__in=regular_categories).distinct()
+            special_categories = Category.objects.filter(permission_level='special')
+            queryset = queryset.exclude(categories__in=special_categories).distinct()
         
-        # 按分类过滤
         if category_slug:
             queryset = queryset.filter(categories__slug=category_slug)
         
@@ -84,11 +98,9 @@ class ComicDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         queryset = Comic.objects.all()
         
-        # 管理员可以看到所有漫画
-        # 普通用户只能看到包含普通权限分类的漫画
         if not (hasattr(self.request.user, 'profile') and self.request.user.profile.user_type == 'admin'):
-            regular_categories = Category.objects.filter(permission_level='regular')
-            queryset = queryset.filter(categories__in=regular_categories).distinct()
+            special_categories = Category.objects.filter(permission_level='special')
+            queryset = queryset.exclude(categories__in=special_categories).distinct()
         
         return queryset
 
@@ -100,13 +112,10 @@ class VideoListView(generics.ListAPIView):
         queryset = Video.objects.all().order_by('-created_at')
         category_slug = self.request.query_params.get('category', None)
         
-        # 管理员可以看到所有视频
-        # 普通用户只能看到包含普通权限分类的视频
         if not (hasattr(self.request.user, 'profile') and self.request.user.profile.user_type == 'admin'):
-            regular_categories = Category.objects.filter(permission_level='regular')
-            queryset = queryset.filter(categories__in=regular_categories).distinct()
+            special_categories = Category.objects.filter(permission_level='special')
+            queryset = queryset.exclude(categories__in=special_categories).distinct()
         
-        # 按分类过滤
         if category_slug:
             queryset = queryset.filter(categories__slug=category_slug)
         
@@ -120,11 +129,9 @@ class VideoDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         queryset = Video.objects.all()
         
-        # 管理员可以看到所有视频
-        # 普通用户只能看到包含普通权限分类的视频
         if not (hasattr(self.request.user, 'profile') and self.request.user.profile.user_type == 'admin'):
-            regular_categories = Category.objects.filter(permission_level='regular')
-            queryset = queryset.filter(categories__in=regular_categories).distinct()
+            special_categories = Category.objects.filter(permission_level='special')
+            queryset = queryset.exclude(categories__in=special_categories).distinct()
         
         return queryset
 
@@ -133,12 +140,12 @@ class VideoDetailView(generics.RetrieveAPIView):
 # 漫画管理
 class ComicCreateView(generics.CreateAPIView):
     queryset = Comic.objects.all()
-    serializer_class = ComicDetailSerializer
+    serializer_class = ComicCreateUpdateSerializer
     permission_classes = [IsAdminPermission]
 
 class ComicUpdateView(generics.UpdateAPIView):
     queryset = Comic.objects.all()
-    serializer_class = ComicDetailSerializer
+    serializer_class = ComicCreateUpdateSerializer
     lookup_field = 'slug'
     permission_classes = [IsAdminPermission]
 
@@ -174,12 +181,12 @@ class ComicChapterDeleteView(generics.DestroyAPIView):
 # 视频管理
 class VideoCreateView(generics.CreateAPIView):
     queryset = Video.objects.all()
-    serializer_class = VideoDetailSerializer
+    serializer_class = VideoCreateUpdateSerializer
     permission_classes = [IsAdminPermission]
 
 class VideoUpdateView(generics.UpdateAPIView):
     queryset = Video.objects.all()
-    serializer_class = VideoDetailSerializer
+    serializer_class = VideoCreateUpdateSerializer
     lookup_field = 'slug'
     permission_classes = [IsAdminPermission]
 
@@ -224,6 +231,29 @@ class CategoryDeleteView(generics.DestroyAPIView):
     queryset = Category.objects.all()
     lookup_field = 'slug'
     permission_classes = [IsAdminPermission]
+
+# 用户密码重置
+class UserPasswordResetView(APIView):
+    permission_classes = [IsAdminPermission]
+
+    def post(self, request, user_id):
+        new_password = request.data.get('new_password')
+
+        if not new_password:
+            return Response({'error': '请提供新密码'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(new_password) < 6:
+            return Response({'error': '密码长度不能少于6个字符'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': f'找不到ID为{user_id}的用户'}, status=status.HTTP_404_NOT_FOUND)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({'message': f'用户{user.username}的密码已成功重置'})
 
 # 图片上传视图
 class ImageUploadView(APIView):
@@ -306,6 +336,184 @@ class ImageUploadView(APIView):
 
         # 返回相对路径
         return Response({'path': relative_path}, status=status.HTTP_201_CREATED)
+
+
+# 视频上传视图
+class VideoUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'error': '没有上传文件', 'detail': 'FILES中不存在file字段'}, status=status.HTTP_400_BAD_REQUEST)
+
+        allowed_types = ['video/mp4', 'video/avi', 'video/mov', 'video/mkv', 'video/webm']
+        if file.content_type not in allowed_types:
+            return Response({'error': '不支持的视频格式', 'detail': f'当前格式: {file.content_type}, 支持的格式: {allowed_types}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ext = os.path.splitext(file.name)[1].lower()
+
+        videos_dir = os.path.join(settings.MEDIA_ROOT, 'videos')
+        if not os.path.exists(videos_dir):
+            os.makedirs(videos_dir)
+
+        filename = f"{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(videos_dir, filename)
+        relative_path = f"videos/{filename}"
+
+        try:
+            with open(filepath, 'wb+') as destination:
+                for chunk in file.chunks():
+                    destination.write(chunk)
+        except Exception as e:
+            return Response({'error': '保存文件失败', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        thumbnail_filename = f"{uuid.uuid4().hex}.jpg"
+        thumbnail_path = os.path.join(videos_dir, thumbnail_filename)
+        thumbnail_relative_path = f"videos/{thumbnail_filename}"
+
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['ffmpeg', '-i', filepath, '-ss', '00:00:01', '-vframes', '1', '-q:v', '2', thumbnail_path, '-y'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0 and os.path.exists(thumbnail_path):
+                return Response({'path': relative_path, 'thumbnail': thumbnail_relative_path}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({'path': relative_path}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"生成视频缩略图失败: {e}")
+            return Response({'path': relative_path}, status=status.HTTP_201_CREATED)
+
+
+# 视频文件夹上传视图（支持m3u8）
+class VideoFolderUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        files = request.FILES.getlist('files')
+        if not files or len(files) == 0:
+            return Response({'error': '没有上传文件', 'detail': 'FILES中不存在files字段'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 查找m3u8文件
+        m3u8_file = None
+        ts_files = []
+        key_files = []
+        other_files = []
+        
+        for file in files:
+            filename = file.name.lower()
+            if filename.endswith('.m3u8'):
+                m3u8_file = file
+            elif filename.endswith('.ts'):
+                ts_files.append(file)
+            elif filename.endswith('.key'):
+                key_files.append(file)
+            else:
+                other_files.append(file)
+        
+        if not m3u8_file:
+            return Response({'error': '没有找到m3u8文件', 'detail': '请确保上传的文件夹中包含index.m3u8文件'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 创建视频目录
+        video_uuid = uuid.uuid4().hex
+        video_dir = os.path.join(settings.MEDIA_ROOT, 'videos', video_uuid)
+        if not os.path.exists(video_dir):
+            os.makedirs(video_dir)
+
+        # 保存所有文件
+        m3u8_path = None
+        for file in files:
+            # 获取文件名（处理完整路径的情况）
+            filename = os.path.basename(file.name)
+            filepath = os.path.join(video_dir, filename)
+            relative_path = f"videos/{video_uuid}/{filename}"
+            
+            if filename.lower().endswith('.m3u8'):
+                m3u8_path = relative_path
+            
+            try:
+                with open(filepath, 'wb+') as destination:
+                    for chunk in file.chunks():
+                        destination.write(chunk)
+            except Exception as e:
+                # 清理已上传的文件
+                import shutil
+                if os.path.exists(video_dir):
+                    shutil.rmtree(video_dir)
+                return Response({'error': '保存文件失败', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 生成缩略图（尝试从第一个ts文件提取）
+        thumbnail_path = None
+        if ts_files:
+            first_ts = ts_files[0]
+            ts_filename = os.path.basename(first_ts.name)
+            ts_filepath = os.path.join(video_dir, ts_filename)
+            
+            thumbnail_filename = f"{video_uuid}.jpg"
+            thumbnail_filepath = os.path.join(settings.MEDIA_ROOT, 'videos', thumbnail_filename)
+            
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['ffmpeg', '-i', ts_filepath, '-ss', '00:00:00', '-vframes', '1', '-q:v', '2', thumbnail_filepath, '-y'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode == 0 and os.path.exists(thumbnail_filepath):
+                    thumbnail_path = f"videos/{thumbnail_filename}"
+            except Exception as e:
+                print(f"生成视频缩略图失败: {e}")
+
+        return Response({
+            'm3u8_path': m3u8_path,
+            'thumbnail': thumbnail_path,
+            'message': 'm3u8视频文件夹上传成功'
+        }, status=status.HTTP_201_CREATED)
+
+
+# 视频缩略图上传视图
+class VideoThumbnailUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'error': '没有上传文件'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 允许的图片格式
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if file.content_type not in allowed_types:
+            return Response({'error': '不支持的图片格式'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 检查文件大小（限制5MB）
+        if file.size > 5 * 1024 * 1024:
+            return Response({'error': '文件大小不能超过5MB'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 检查文件扩展名
+        ext = os.path.splitext(file.name)[1].lower()
+
+        # 保存到视频目录
+        videos_dir = os.path.join(settings.MEDIA_ROOT, 'videos')
+        if not os.path.exists(videos_dir):
+            os.makedirs(videos_dir)
+
+        # 生成唯一文件名
+        filename = f"{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(videos_dir, filename)
+        relative_path = f"videos/{filename}"
+
+        # 保存文件
+        with open(filepath, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+        return Response({'path': relative_path}, status=status.HTTP_201_CREATED)
+
 
 # 同步媒体文件
 @api_view(['POST'])

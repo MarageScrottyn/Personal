@@ -361,19 +361,28 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .comic-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
   
   .list-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 15px;
-    padding: 0 15px;
+    gap: 12px;
+    padding: 0 12px;
   }
   
   .list-content {
-    padding: 0 15px;
+    padding: 0 12px;
+  }
+  
+  .create-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .btn-icon {
+    font-size: 16px;
   }
   
   .comic-card {
@@ -381,25 +390,33 @@ onMounted(() => {
   }
   
   .comic-cover {
-    height: 180px;
+    height: 140px;
   }
   
   .comic-info {
-    padding: 12px;
+    padding: 10px;
   }
   
   .comic-info h3 {
-    font-size: 15px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .comic-author,
+  .comic-category,
+  .comic-chapters {
+    font-size: 12px;
+    margin-bottom: 4px;
   }
   
   .comic-actions {
-    padding: 12px;
-    gap: 8px;
+    padding: 10px;
+    gap: 6px;
   }
   
   .action-btn {
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 5px 10px;
+    font-size: 12px;
   }
   
   .confirm-dialog {
@@ -423,6 +440,31 @@ onMounted(() => {
   .btn {
     width: 100%;
     padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .comic-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .comic-cover {
+    height: 120px;
+  }
+  
+  .list-header h2 {
+    font-size: 18px;
+  }
+  
+  .comic-info h3 {
+    font-size: 13px;
+  }
+  
+  .comic-author,
+  .comic-category,
+  .comic-chapters {
+    font-size: 11px;
   }
 }
 </style>

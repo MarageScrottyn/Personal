@@ -4,7 +4,12 @@
       <div class="nav-content">
         <div class="nav-brand">
           <span class="brand-icon">🎬</span>
-          <span class="brand-text">聚合空间</span>
+          <span class="brand-text" v-if="!isMobile">聚合空间</span>
+          <span class="page-title" v-else>{{ currentPageTitle }}</span>
+        </div>
+        <!-- 移动端用户按钮 -->
+        <div v-if="isMobile" class="mobile-user-btn" @click="openMobileUserSheet">
+          <span class="user-avatar">👤</span>
         </div>
         <div class="nav-links">
           <router-link to="/comics" :class="['nav-link', { active: $route.path.startsWith('/comics') }]">
@@ -41,44 +46,136 @@
             <span>退出</span>
           </button>
         </div>
-        <button class="mobile-menu-btn" @click="toggleMobileMenu">
-          <span class="menu-icon">{{ mobileMenuOpen ? '✕' : '☰' }}</span>
-        </button>
+      </div>
+      <!-- 移动端水平滚动导航 -->
+      <div class="mobile-nav-container">
+        <div class="mobile-nav-scroll">
+          <router-link to="/comics" :class="['mobile-nav-item', { active: $route.path.startsWith('/comics') }]">
+            <span class="link-icon">📚</span>
+            <span class="link-text">漫画</span>
+          </router-link>
+          <router-link to="/videos" :class="['mobile-nav-item', { active: $route.path.startsWith('/videos') }]">
+            <span class="link-icon">🎥</span>
+            <span class="link-text">视频</span>
+          </router-link>
+          <router-link to="/notes" :class="['mobile-nav-item', { active: $route.path.startsWith('/notes') }]">
+            <span class="link-icon">📝</span>
+            <span class="link-text">笔记</span>
+          </router-link>
+          <router-link to="/cloud" :class="['mobile-nav-item', { active: $route.path.startsWith('/cloud') }]">
+            <span class="link-icon">☁️</span>
+            <span class="link-text">云盘</span>
+          </router-link>
+          <router-link v-if="authStore.isAdmin" to="/admin" :class="['mobile-nav-item', { active: $route.path.startsWith('/admin') }]">
+            <span class="link-icon">⚙️</span>
+            <span class="link-text">管理</span>
+          </router-link>
+        </div>
       </div>
     </nav>
-    <div :class="['mobile-menu', { open: mobileMenuOpen }]">
-      <div class="mobile-nav-links">
-        <router-link to="/comics" class="mobile-nav-link" @click="mobileMenuOpen = false">
-          <span class="link-icon">📚</span>
-          <span>漫画</span>
-        </router-link>
-        <router-link to="/videos" class="mobile-nav-link" @click="mobileMenuOpen = false">
-          <span class="link-icon">🎥</span>
-          <span>视频</span>
-        </router-link>
-        <router-link to="/notes" class="mobile-nav-link" @click="mobileMenuOpen = false">
-          <span class="link-icon">📝</span>
-          <span>笔记</span>
-        </router-link>
-        <router-link to="/cloud" class="mobile-nav-link" @click="mobileMenuOpen = false">
-          <span class="link-icon">☁️</span>
-          <span>云盘</span>
-        </router-link>
-        <router-link v-if="authStore.isAdmin" to="/admin" class="mobile-nav-link" @click="mobileMenuOpen = false">
-          <span class="link-icon">⚙️</span>
-          <span>管理</span>
-        </router-link>
-      </div>
-      <div class="mobile-user">
-        <span class="user-name">{{ authStore.user?.username || '用户' }}</span>
-        <button @click="handleLogout" class="mobile-logout-btn">退出登录</button>
-      </div>
-    </div>
     <main class="main-content">
       <router-view />
     </main>
   </div>
   
+  <!-- 移动端用户设置底部弹窗 -->
+  <div v-if="showMobileUserSheet" class="mobile-user-sheet" @click="closeMobileUserSheet">
+    <div class="sheet-content" @click.stop>
+      <div class="sheet-header">
+        <h3>用户设置</h3>
+        <button @click="closeMobileUserSheet" class="sheet-close-btn">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="user-info-card">
+          <div class="user-avatar-large">👤</div>
+          <div class="user-details">
+            <span class="username">{{ authStore.user?.username || '未知' }}</span>
+            <span class="user-role">{{ authStore.isAdmin ? '管理员' : '普通用户' }}</span>
+          </div>
+        </div>
+        
+        <!-- 修改密码 -->
+        <div class="sheet-section">
+          <div class="section-toggle" @click="mobileShowPassword = !mobileShowPassword">
+            <h4>修改密码</h4>
+            <span class="toggle-icon">{{ mobileShowPassword ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="mobileShowPassword" class="section-content">
+            <form @submit.prevent="changePassword">
+              <div class="form-group">
+                <input type="password" v-model="passwordForm.currentPassword" placeholder="当前密码" required>
+              </div>
+              <div class="form-group">
+                <input type="password" v-model="passwordForm.newPassword" placeholder="新密码" required>
+              </div>
+              <div class="form-group">
+                <input type="password" v-model="passwordForm.confirmPassword" placeholder="确认新密码" required>
+              </div>
+              <button type="submit" class="sheet-btn primary">修改密码</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 账户权限管理 -->
+        <div v-if="authStore.isAdmin" class="sheet-section">
+          <div class="section-toggle" @click="mobileShowPermissions = !mobileShowPermissions">
+            <h4>账户权限管理</h4>
+            <span class="toggle-icon">{{ mobileShowPermissions ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="mobileShowPermissions" class="section-content">
+            <div class="user-list-mobile">
+              <div v-for="user in users" :key="user.id" class="user-item-mobile">
+                <span class="item-username">{{ user.username }}</span>
+                <select v-model="user.permission" @change="updateUserPermission(user)">
+                  <option value="admin">管理员</option>
+                  <option value="user">普通用户</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 重置用户密码 -->
+        <div v-if="authStore.isAdmin" class="sheet-section">
+          <div class="section-toggle" @click="mobileShowResetPassword = !mobileShowResetPassword">
+            <h4>重置用户密码</h4>
+            <span class="toggle-icon">{{ mobileShowResetPassword ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="mobileShowResetPassword" class="section-content">
+            <form @submit.prevent="resetUserPassword">
+              <div class="form-group">
+                <select v-model="resetPasswordForm.userId" required>
+                  <option value="">选择用户</option>
+                  <option v-for="user in users" :key="user.id" :value="user.id">
+                    {{ user.username }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <input type="password" v-model="resetPasswordForm.newPassword" placeholder="新密码" required minlength="6">
+              </div>
+              <div class="form-group">
+                <input type="password" v-model="resetPasswordForm.confirmPassword" placeholder="确认新密码" required minlength="6">
+              </div>
+              <div v-if="resetPasswordError" class="error-text">{{ resetPasswordError }}</div>
+              <div v-if="resetPasswordSuccess" class="success-text">{{ resetPasswordSuccess }}</div>
+              <button type="submit" class="sheet-btn primary">重置密码</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="sheet-actions">
+          <button v-if="authStore.isAdmin" @click="syncMedia" class="sheet-btn">
+            <span>🔄</span> 同步媒体
+          </button>
+          <button @click="handleLogout" class="sheet-btn danger">
+            <span>🚪</span> 退出登录
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 个人信息弹窗 -->
   <div v-if="showUserProfile" class="user-profile-modal" @click="closeUserProfile">
     <div class="modal-content" @click.stop>
@@ -94,28 +191,38 @@
           </div>
         </div>
         
-        <div class="password-section">
-          <h4>修改密码</h4>
-          <form @submit.prevent="changePassword">
-            <div class="form-group">
-              <label for="currentPassword">当前密码:</label>
-              <input type="password" id="currentPassword" v-model="passwordForm.currentPassword" required>
-            </div>
-            <div class="form-group">
-              <label for="newPassword">新密码:</label>
-              <input type="password" id="newPassword" v-model="passwordForm.newPassword" required>
-            </div>
-            <div class="form-group">
-              <label for="confirmPassword">确认新密码:</label>
-              <input type="password" id="confirmPassword" v-model="passwordForm.confirmPassword" required>
-            </div>
-            <button type="submit" class="submit-btn">修改密码</button>
-          </form>
+        <!-- 修改密码 -->
+        <div class="settings-section">
+          <div class="settings-toggle" @click="showPasswordSection = !showPasswordSection">
+            <h4>修改密码</h4>
+            <span class="toggle-arrow">{{ showPasswordSection ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="showPasswordSection" class="settings-content">
+            <form @submit.prevent="changePassword">
+              <div class="form-group">
+                <label for="currentPassword">当前密码:</label>
+                <input type="password" id="currentPassword" v-model="passwordForm.currentPassword" required>
+              </div>
+              <div class="form-group">
+                <label for="newPassword">新密码:</label>
+                <input type="password" id="newPassword" v-model="passwordForm.newPassword" required>
+              </div>
+              <div class="form-group">
+                <label for="confirmPassword">确认新密码:</label>
+                <input type="password" id="confirmPassword" v-model="passwordForm.confirmPassword" required>
+              </div>
+              <button type="submit" class="submit-btn">修改密码</button>
+            </form>
+          </div>
         </div>
         
-        <div v-if="authStore.isAdmin" class="permissions-section">
-          <h4>账户权限管理</h4>
-          <div class="permissions-content">
+        <!-- 账户权限管理 -->
+        <div v-if="authStore.isAdmin" class="settings-section">
+          <div class="settings-toggle" @click="showPermissionsSection = !showPermissionsSection">
+            <h4>账户权限管理</h4>
+            <span class="toggle-arrow">{{ showPermissionsSection ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="showPermissionsSection" class="settings-content">
             <div class="user-list">
               <div v-for="user in users" :key="user.id" class="user-item">
                 <span class="user-name">{{ user.username }}</span>
@@ -125,6 +232,38 @@
                 </select>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 重置用户密码 -->
+        <div v-if="authStore.isAdmin" class="settings-section">
+          <div class="settings-toggle" @click="showResetSection = !showResetSection">
+            <h4>重置用户密码</h4>
+            <span class="toggle-arrow">{{ showResetSection ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="showResetSection" class="settings-content">
+            <form @submit.prevent="resetUserPassword">
+              <div class="form-group">
+                <label for="resetUserSelect">选择用户:</label>
+                <select id="resetUserSelect" v-model="resetPasswordForm.userId" required>
+                  <option value="">请选择用户</option>
+                  <option v-for="user in users" :key="user.id" :value="user.id">
+                    {{ user.username }} ({{ user.permission === 'admin' ? '管理员' : '普通用户' }})
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="resetNewPassword">新密码:</label>
+                <input type="password" id="resetNewPassword" v-model="resetPasswordForm.newPassword" placeholder="请输入新密码（至少6个字符）" required minlength="6">
+              </div>
+              <div class="form-group">
+                <label for="resetConfirmPassword">确认新密码:</label>
+                <input type="password" id="resetConfirmPassword" v-model="resetPasswordForm.confirmPassword" placeholder="请再次输入新密码" required minlength="6">
+              </div>
+              <div v-if="resetPasswordError" class="error-message">{{ resetPasswordError }}</div>
+              <div v-if="resetPasswordSuccess" class="success-message">{{ resetPasswordSuccess }}</div>
+              <button type="submit" class="submit-btn reset-btn">重置密码</button>
+            </form>
           </div>
         </div>
       </div>
@@ -141,26 +280,58 @@ import apiClient from '../api/client'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const mobileMenuOpen = ref(false)
 const showUserProfile = ref(false)
+const showMobileUserSheet = ref(false)
+const showPasswordSection = ref(false)
+const showPermissionsSection = ref(false)
+const showResetSection = ref(false)
+const mobileShowPassword = ref(false)
+const mobileShowPermissions = ref(false)
+const mobileShowResetPassword = ref(false)
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
 const users = ref([])
+const resetPasswordForm = ref({
+  userId: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const resetPasswordError = ref('')
+const resetPasswordSuccess = ref('')
 
 const isComicReadPage = computed(() => {
   return route.path.includes('/read/')
 })
 
+const isMobile = computed(() => {
+  return window.innerWidth <= 768
+})
+
+const currentPageTitle = computed(() => {
+  const path = route.path
+  if (path.startsWith('/comics')) {
+    return '漫画'
+  } else if (path.startsWith('/videos')) {
+    return '视频'
+  } else if (path.startsWith('/notes')) {
+    return '笔记'
+  } else if (path.startsWith('/cloud')) {
+    return '云盘'
+  } else if (path.startsWith('/admin')) {
+    return '管理'
+  } else if (path.startsWith('/login')) {
+    return '登录'
+  } else {
+    return '聚合空间'
+  }
+})
+
 const handleLogout = () => {
   authStore.logout()
   router.push('/login')
-}
-
-const toggleMobileMenu = () => {
-  mobileMenuOpen.value = !mobileMenuOpen.value
 }
 
 const syncMedia = async () => {
@@ -174,6 +345,19 @@ const syncMedia = async () => {
 
 const closeUserProfile = () => {
   showUserProfile.value = false
+}
+
+const openMobileUserSheet = () => {
+  showMobileUserSheet.value = true
+  document.body.style.overflow = 'hidden'
+  if (authStore.isAdmin) {
+    fetchUsers()
+  }
+}
+
+const closeMobileUserSheet = () => {
+  showMobileUserSheet.value = false
+  document.body.style.overflow = ''
 }
 
 const changePassword = async () => {
@@ -246,6 +430,50 @@ const openUserProfile = () => {
     fetchUsers()
   }
 }
+
+const resetUserPassword = async () => {
+  resetPasswordError.value = ''
+  resetPasswordSuccess.value = ''
+
+  if (!resetPasswordForm.value.userId) {
+    resetPasswordError.value = '请选择要重置密码的用户'
+    return
+  }
+
+  if (!resetPasswordForm.value.newPassword) {
+    resetPasswordError.value = '请输入新密码'
+    return
+  }
+
+  if (resetPasswordForm.value.newPassword.length < 6) {
+    resetPasswordError.value = '密码长度不能少于6个字符'
+    return
+  }
+
+  if (resetPasswordForm.value.newPassword !== resetPasswordForm.value.confirmPassword) {
+    resetPasswordError.value = '两次输入的密码不一致'
+    return
+  }
+
+  try {
+    await apiClient.post(`/admin/users/${resetPasswordForm.value.userId}/reset-password/`, {
+      new_password: resetPasswordForm.value.newPassword
+    })
+    resetPasswordSuccess.value = '密码重置成功！'
+    resetPasswordForm.value = {
+      userId: '',
+      newPassword: '',
+      confirmPassword: ''
+    }
+    setTimeout(() => {
+      resetPasswordSuccess.value = ''
+    }, 3000)
+  } catch (error) {
+    console.error('重置密码失败:', error)
+    console.error('错误响应:', error.response?.data)
+    resetPasswordError.value = error.response?.data?.error || '重置密码失败，请稍后重试'
+  }
+}
 </script>
 
 <style scoped>
@@ -284,47 +512,61 @@ const openUserProfile = () => {
 .nav-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 70px;
+  height: 60px;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .brand-icon {
-  font-size: 28px;
-}
-
-.brand-text {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+.brand-text {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.page-title {
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
 .nav-links {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 8px 16px;
   color: #666;
   text-decoration: none;
-  border-radius: 10px;
+  border-radius: 8px;
   transition: all 0.3s ease;
   font-weight: 500;
+  font-size: 14px;
+}
+
+.link-icon {
+  font-size: 16px;
 }
 
 .nav-link:hover {
@@ -402,91 +644,58 @@ const openUserProfile = () => {
   transform: rotate(180deg);
 }
 
-/* 移动端菜单按钮 */
-.mobile-menu-btn {
+/* 移动端水平滚动导航 */
+.mobile-nav-container {
   display: none;
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.mobile-menu-btn:hover {
-  background: #f0f0f0;
-}
-
-/* 移动端菜单 */
-.mobile-menu {
-  display: none;
-  position: fixed;
-  top: 70px;
-  left: 0;
-  right: 0;
+  width: 100%;
+  border-top: 1px solid #eee;
   background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  z-index: 99;
-  padding: 20px;
-  transform: translateY(-100%);
-  opacity: 0;
-  transition: all 0.3s ease;
 }
 
-.mobile-menu.open {
-  display: block;
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.mobile-nav-links {
+.mobile-nav-scroll {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 8px 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
-.mobile-nav-link {
+.mobile-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-right: 8px;
   color: #666;
   text-decoration: none;
-  border-radius: 10px;
+  border-radius: 20px;
+  font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
+  background: #f5f5f5;
+  white-space: nowrap;
 }
 
-.mobile-nav-link:hover,
-.mobile-nav-link.active {
+.mobile-nav-item:hover {
+  background: #e0e0e0;
+}
+
+.mobile-nav-item.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
 
-.mobile-user {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+.mobile-nav-item .link-icon {
+  font-size: 16px;
 }
 
-.mobile-logout-btn {
-  padding: 8px 16px;
-  background: #f0f0f0;
-  color: #666;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.mobile-logout-btn:hover {
-  background: #e0e0e0;
-  color: #333;
+.mobile-nav-item .link-text {
+  font-size: 13px;
 }
 
 @media (max-width: 768px) {
@@ -495,16 +704,48 @@ const openUserProfile = () => {
     display: none;
   }
 
-  .mobile-menu-btn {
+  .mobile-nav-container {
     display: block;
   }
 
   .nav-content {
-    height: 70px;
+    height: 45px;
+    padding: 0 10px;
   }
 
   .main-content {
-    padding: 15px;
+    padding: 10px;
+  }
+
+  .brand-icon {
+    font-size: 20px;
+  }
+
+  .page-title {
+    font-size: 14px;
+    max-width: 100px;
+  }
+
+  .mobile-nav-container {
+    border-top: 1px solid #eee;
+  }
+
+  .mobile-nav-scroll {
+    padding: 6px 10px;
+  }
+
+  .mobile-nav-item {
+    padding: 7px 14px;
+    margin-right: 6px;
+    font-size: 13px;
+  }
+
+  .mobile-nav-item .link-icon {
+    font-size: 15px;
+  }
+
+  .mobile-nav-item .link-text {
+    font-size: 12px;
   }
 }
 
@@ -597,17 +838,41 @@ const openUserProfile = () => {
   font-weight: 500;
 }
 
-.password-section {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
+.settings-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 1px solid #eee;
 }
 
-.password-section h4 {
-  margin: 0 0 15px 0;
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.settings-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  user-select: none;
+}
+
+.settings-toggle h4 {
+  margin: 0;
   color: #333;
   font-size: 16px;
   font-weight: 600;
+}
+
+.toggle-arrow {
+  font-size: 12px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.settings-content {
+  padding-top: 15px;
+  animation: fadeIn 0.2s ease;
 }
 
 .form-group {
@@ -660,13 +925,6 @@ const openUserProfile = () => {
   margin-top: 20px;
 }
 
-.permissions-section h4 {
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 16px;
-  font-weight: 600;
-}
-
 .user-list {
   display: flex;
   flex-direction: column;
@@ -708,6 +966,39 @@ const openUserProfile = () => {
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
+.reset-password-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.reset-btn {
+  background: #f57c00;
+  margin-top: 15px;
+}
+
+.reset-btn:hover {
+  background: #ef6c00;
+}
+
+.error-message {
+  padding: 10px;
+  background: #fee;
+  border-radius: 6px;
+  color: #e74c3c;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.success-message {
+  padding: 10px;
+  background: #e8f5e9;
+  border-radius: 6px;
+  color: #2e7d32;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -716,6 +1007,274 @@ const openUserProfile = () => {
 @keyframes slideIn {
   from { transform: translateY(-20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+.mobile-user-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mobile-user-btn .user-avatar {
+  font-size: 18px;
+  filter: grayscale(100%) brightness(200%);
+}
+
+.mobile-user-btn:active {
+  transform: scale(0.95);
+}
+
+/* 移动端用户设置底部弹窗 */
+.mobile-user-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+.sheet-content {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  background: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.sheet-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.sheet-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f5f5f5;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sheet-close-btn:active {
+  background: #e0e0e0;
+  transform: scale(0.95);
+}
+
+.sheet-body {
+  padding: 20px;
+}
+
+.user-info-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.user-avatar-large {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-details .username {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+.user-details .user-role {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sheet-section {
+  margin-bottom: 16px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.section-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-toggle h4 {
+  font-size: 15px;
+  color: #333;
+  margin: 0;
+  font-weight: 600;
+}
+
+.toggle-icon {
+  font-size: 11px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.section-content {
+  padding: 0 16px 14px 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.sheet-section .form-group {
+  margin-bottom: 12px;
+}
+
+.sheet-section input,
+.sheet-section select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+  background: white;
+}
+
+.sheet-section input:focus,
+.sheet-section select:focus {
+  border-color: #667eea;
+}
+
+.error-text {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.success-text {
+  color: #27ae60;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.user-list-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.user-item-mobile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border-radius: 10px;
+}
+
+.item-username {
+  font-size: 14px;
+  color: #333;
+}
+
+.user-item-mobile select {
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+}
+
+.sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.sheet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #f5f5f5;
+  color: #333;
+}
+
+.sheet-btn:active {
+  transform: scale(0.98);
+}
+
+.sheet-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.sheet-btn.danger {
+  background: #ffe5e5;
+  color: #e74c3c;
+}
+
+.sheet-btn span {
+  font-size: 16px;
 }
 
 @media (max-width: 768px) {
@@ -731,6 +1290,55 @@ const openUserProfile = () => {
   
   .user-info {
     display: none;
+  }
+  
+  .nav-content {
+    height: 45px;
+    padding: 0 10px;
+  }
+  
+  .main-content {
+    padding: 10px;
+  }
+  
+  .brand-icon {
+    font-size: 20px;
+  }
+  
+  .page-title {
+    font-size: 14px;
+    max-width: 100px;
+  }
+  
+  .mobile-user-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .mobile-user-btn .user-avatar {
+    font-size: 16px;
+  }
+  
+  .mobile-nav-container {
+    border-top: 1px solid #eee;
+  }
+
+  .mobile-nav-scroll {
+    padding: 6px 10px;
+  }
+
+  .mobile-nav-item {
+    padding: 7px 14px;
+    margin-right: 6px;
+    font-size: 13px;
+  }
+
+  .mobile-nav-item .link-icon {
+    font-size: 15px;
+  }
+
+  .mobile-nav-item .link-text {
+    font-size: 12px;
   }
 }
 </style>

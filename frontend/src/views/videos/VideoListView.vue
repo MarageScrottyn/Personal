@@ -4,21 +4,46 @@
       <h1>🎥 视频库</h1>
       <p>观看精彩视频内容</p>
     </div>
+
+    <div class="category-filter">
+      <div class="filter-tabs-wrapper">
+        <div class="filter-tabs">
+          <button
+            :class="['filter-tab', { active: selectedCategory === null }]"
+            @click="selectCategory(null)"
+          >
+            全部
+          </button>
+          <button
+            v-for="category in videoCategories"
+            :key="category.id"
+            :class="['filter-tab', { active: selectedCategory === category.id }]"
+            @click="selectCategory(category.id)"
+          >
+            {{ category.name }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading">
       <div class="loading-spinner"></div>
       <p>加载中...</p>
     </div>
     <div v-else-if="error" class="error">{{ error }}</div>
+    <div v-else-if="filteredVideos.length === 0 && selectedCategory" class="empty">
+      <span class="empty-icon">📭</span>
+      <p>该分类下暂无视频</p>
+    </div>
     <div v-else class="video-grid">
       <div
-        v-for="video in videos"
+        v-for="video in filteredVideos"
         :key="video.id"
         class="video-card"
         @click="goToDetail(video.slug)"
       >
         <div class="video-thumbnail">
           <img :src="getImageUrl(video.thumbnail)" :alt="video.title" />
-          <span class="duration">{{ formatDuration(video.duration) }}</span>
           <div class="play-overlay">
             <span class="play-icon">▶</span>
           </div>
@@ -26,8 +51,8 @@
         <div class="video-info">
           <h3 class="video-title">{{ video.title }}</h3>
           <div class="video-categories">
-            <span 
-              v-for="category in video.category_names" 
+            <span
+              v-for="category in video.category_names"
               :key="category"
               class="category-tag"
               @click.stop="goToCategory(category)"
@@ -35,11 +60,10 @@
               {{ category }}
             </span>
           </div>
-          <p class="video-desc">{{ video.description }}</p>
         </div>
       </div>
     </div>
-    <div v-if="!loading && videos.length === 0" class="empty">
+    <div v-if="!loading && filteredVideos.length === 0" class="empty">
       <span class="empty-icon">📭</span>
       <p>暂无视频</p>
     </div>
@@ -47,7 +71,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '../../api/client'
 
@@ -56,6 +80,26 @@ const videos = ref([])
 const categories = ref([])
 const loading = ref(true)
 const error = ref('')
+const selectedCategory = ref(null)
+
+const videoCategories = computed(() => {
+  const videoCategoryIds = new Set()
+  videos.value.forEach(video => {
+    if (video.categories && Array.isArray(video.categories)) {
+      video.categories.forEach(catId => videoCategoryIds.add(catId))
+    }
+  })
+  return categories.value.filter(cat => videoCategoryIds.has(cat.id))
+})
+
+const filteredVideos = computed(() => {
+  if (!selectedCategory.value) {
+    return videos.value
+  }
+  return videos.value.filter(video =>
+    video.categories.includes(selectedCategory.value)
+  )
+})
 
 const fetchVideos = async () => {
   try {
@@ -77,6 +121,10 @@ const fetchCategories = async () => {
   }
 }
 
+const selectCategory = (categoryId) => {
+  selectedCategory.value = categoryId
+}
+
 const getImageUrl = (path) => {
   if (!path) return '/placeholder.png'
   if (path.startsWith('http')) {
@@ -91,18 +139,11 @@ const getImageUrl = (path) => {
   return '/media/' + path
 }
 
-const formatDuration = (seconds) => {
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-}
-
 const goToDetail = (slug) => {
   router.push(`/videos/${slug}`)
 }
 
 const goToCategory = (categoryName) => {
-  // 查找分类的slug
   const category = categories.value.find(cat => cat.name === categoryName)
   if (category) {
     router.push(`/categories/${category.slug}`)
@@ -122,18 +163,64 @@ onMounted(async () => {
 
 .page-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .page-header h1 {
-  font-size: 32px;
+  font-size: 28px;
   color: #2c3e50;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .page-header p {
   color: #7f8c8d;
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.category-filter {
+  margin-bottom: 25px;
+  padding: 0 15px;
+  overflow: hidden;
+}
+
+.filter-tabs-wrapper {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 10px;
+}
+
+.filter-tabs-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  min-width: max-content;
+}
+
+.filter-tab {
+  padding: 8px 20px;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.filter-tab:hover {
+  background: #e8e8e8;
+}
+
+.filter-tab.active {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  border-color: transparent;
 }
 
 .loading {
@@ -167,27 +254,28 @@ onMounted(async () => {
 
 .video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 0 15px;
 }
 
 .video-card {
   background: white;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .video-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .video-thumbnail {
   position: relative;
-  height: 180px;
+  height: 150px;
   overflow: hidden;
 }
 
@@ -200,18 +288,6 @@ onMounted(async () => {
 
 .video-card:hover .video-thumbnail img {
   transform: scale(1.05);
-}
-
-.duration {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 5px;
-  font-size: 13px;
-  font-weight: 500;
 }
 
 .play-overlay {
@@ -233,42 +309,44 @@ onMounted(async () => {
 }
 
 .play-icon {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   background: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 16px;
   color: #11998e;
-  padding-left: 5px;
+  padding-left: 3px;
 }
 
 .video-info {
-  padding: 18px;
+  padding: 12px;
 }
 
 .video-title {
-  font-size: 18px;
+  font-size: 15px;
   color: #2c3e50;
   margin-bottom: 8px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .video-categories {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
 }
 
 .category-tag {
-  padding: 4px 12px;
+  padding: 2px 10px;
   background: #f0f0f0;
-  color: #333;
-  border-radius: 20px;
-  font-size: 12px;
+  color: #666;
+  border-radius: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -276,16 +354,6 @@ onMounted(async () => {
 .category-tag:hover {
   background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   color: white;
-}
-
-.video-desc {
-  color: #7f8c8d;
-  font-size: 14px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .empty {
@@ -306,39 +374,65 @@ onMounted(async () => {
 
 @media (max-width: 768px) {
   .page-header h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .video-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0 10px;
   }
 
   .video-thumbnail {
-    height: 150px;
+    height: 120px;
   }
 
   .video-info {
-    padding: 12px;
+    padding: 10px;
   }
 
   .video-title {
-    font-size: 15px;
+    font-size: 13px;
+    margin-bottom: 6px;
   }
 
-  .video-desc {
-    font-size: 12px;
+  .category-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  .filter-tabs {
+    gap: 8px;
+  }
+
+  .filter-tab {
+    padding: 6px 14px;
+    font-size: 13px;
   }
 }
 
 @media (max-width: 480px) {
   .video-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .video-thumbnail {
-    height: 180px;
+    height: 110px;
+  }
+
+  .video-info {
+    padding: 8px;
+  }
+
+  .video-title {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    display: none;
   }
 }
 </style>

@@ -9,7 +9,8 @@ from .views import (
     ComicChapterCreateView, ComicChapterUpdateView, ComicChapterDeleteView,
     VideoCreateView, VideoUpdateView, VideoDeleteView,
     CategoryCreateView, CategoryUpdateView, CategoryDeleteView,
-    ImageUploadView,
+    UserPasswordResetView,
+    ImageUploadView, VideoUploadView, VideoThumbnailUploadView, VideoFolderUploadView,
     sync_media_view, cleanup_temp_files,
     # 笔记视图
     NoteListView, NoteDetailView,
@@ -53,6 +54,9 @@ urlpatterns = [
 
     # 图片上传
     path('upload/image/', ImageUploadView.as_view(), name='image_upload'),
+    path('upload/video/', VideoUploadView.as_view(), name='video_upload'),
+    path('upload/video-folder/', VideoFolderUploadView.as_view(), name='video_folder_upload'),
+    path('upload/video-thumbnail/', VideoThumbnailUploadView.as_view(), name='video_thumbnail_upload'),
 
     # 同步媒体文件
     path('sync-media/', sync_media_view, name='sync_media'),
@@ -63,6 +67,7 @@ urlpatterns = [
     path('users/', UserListView.as_view(), name='user_list'),
     path('users/<int:pk>/', UserUpdateView.as_view(), name='user_update'),
     path('change-password/', change_password_view, name='change_password'),
+    path('admin/users/<int:user_id>/reset-password/', UserPasswordResetView.as_view(), name='user_password_reset'),
 
     # 云盘路由
     path('cloud/', CloudFileListView.as_view(), name='cloud_list'),
