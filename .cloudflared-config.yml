@@ -1,0 +1,31 @@
+# Cloudflare Tunnel 配置：marage.ccwu.cc 路径分流
+# API/媒体/后台 直达 Django(8000)；网页与 HMR 热重载走 Vite 开发服务器(5173)
+tunnel: f21f03c5-6b95-4d29-b50f-fec42bb96d91
+credentials-file: /data/data/com.termux/files/home/.cloudflared/f21f03c5-6b95-4d29-b50f-fec42bb96d91.json
+
+# 强制使用基于 TCP 的 HTTP/2 连接 Cloudflare 边缘（移动/跨境网络下比 QUIC/UDP 更稳定，避免 HMR 长连接频繁掉线）
+protocol: http2
+
+# 入口路由规则（按顺序匹配，命中即生效）
+ingress:
+  # API 接口直达 Django：即使 Vite 未运行，Android App 仍可正常调用
+  - hostname: marage.ccwu.cc
+    path: (?i)^/api/.*
+    service: http://localhost:8000
+  # 媒体文件（图片/视频）直达 Django
+  - hostname: marage.ccwu.cc
+    path: (?i)^/media/.*
+    service: http://localhost:8000
+  # Django 管理后台直达
+  - hostname: marage.ccwu.cc
+    path: (?i)^/admin/.*
+    service: http://localhost:8000
+  # Django 静态资源（admin css/js 等）直达
+  - hostname: marage.ccwu.cc
+    path: (?i)^/static/.*
+    service: http://localhost:8000
+  # 其余请求（网页、Vite HMR 热重载 WebSocket）转发到 Vite 开发服务器
+  - hostname: marage.ccwu.cc
+    service: http://localhost:5173
+  # 兜底规则：未匹配的请求返回 404（cloudflared 要求必须以 http_status 结尾）
+  - service: http_status:404

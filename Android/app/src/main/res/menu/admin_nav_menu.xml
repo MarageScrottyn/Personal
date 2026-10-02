@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_dashboard"
+            android:icon="@drawable/ic_dashboard"
+            android:title="仪表盘" />
+        <item
+            android:id="@+id/nav_comics_admin"
+            android:icon="@drawable/ic_comic"
+            android:title="漫画管理" />
+        <item
+            android:id="@+id/nav_videos_admin"
+            android:icon="@drawable/ic_video"
+            android:title="视频管理" />
+        <item
+            android:id="@+id/nav_categories_admin"
+            android:icon="@drawable/ic_category"
+            android:title="分类管理" />
+        <item
+            android:id="@+id/nav_back_home"
+            android:icon="@drawable/ic_home"
+            android:title="返回首页" />
+    </group>
+</menu>

@@ -180,14 +180,22 @@ onMounted(async () => {
 .category-filter {
   margin-bottom: 25px;
   padding: 0 15px;
-  overflow: hidden;
 }
 
 .filter-tabs-wrapper {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-overflow-scrolling: touch;
   overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding-bottom: 10px;
+  touch-action: pan-x;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .filter-tabs-wrapper::-webkit-scrollbar {

@@ -1,7 +1,25 @@
 from rest_framework import serializers
 from django.conf import settings
 from django.contrib.auth.models import User
-from .models import Category, Comic, ComicChapter, Video, Profile, Note, CloudFile
+from .models import Category, Comic, ComicChapter, Video, Profile, Note, CloudFile, Image, Album
+
+
+def build_media_url(request, path):
+    """将媒体相对路径转为完整URL"""
+    if not path:
+        return ''
+    path = str(path)
+    if path.startswith('http://') or path.startswith('https://'):
+        return path
+    if path.startswith('/media/'):
+        normalized = path
+    elif path.startswith('media/'):
+        normalized = '/' + path
+    else:
+        normalized = '/media/' + path
+    if request:
+        return request.build_absolute_uri(normalized)
+    return normalized
 
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
@@ -45,6 +63,181 @@ class UserSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
+class ImageSerializer(serializers.ModelSerializer):
+    image_file = serializers.SerializerMethodField()
+    category_names = serializers.SerializerMethodField()
+    categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True, required=False)
+
+    class Meta:
+        model = Image
+        fields = ['id', 'resource_id', 'image_file', 'title', 'description', 'category_names', 'categories', 'resource_type', 'album_id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'resource_id', 'created_at', 'updated_at']
+
+    def get_image_file(self, obj):
+        if not obj.image_file:
+            return ''
+        img_path = str(obj.image_file)
+        if img_path.startswith('http://') or img_path.startswith('https://'):
+            return img_path
+        # 规范化路径
+        if img_path.startswith('/media/'):
+            normalized_path = img_path
+        elif img_path.startswith('media/'):
+            normalized_path = '/' + img_path
+        else:
+            normalized_path = '/media/' + img_path
+        # 构建完整 URL
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(normalized_path)
+        return normalized_path
+
+    def get_category_names(self, obj):
+        return [category.name for category in obj.categories.all()]
+
+    def create(self, validated_data):
+        categories = validated_data.pop('categories', [])
+        image = super().create(validated_data)
+        if categories:
+            image.categories.set(categories)
+        return image
+
+    def update(self, instance, validated_data):
+        categories = validated_data.pop('categories', [])
+        instance = super().update(instance, validated_data)
+        if categories:
+            instance.categories.set(categories)
+        return instance
+
+class AlbumSerializer(serializers.ModelSerializer):
+    """图集序列化器 - 按上传顺序返回图片"""
+    cover_image = serializers.SerializerMethodField()
+    cover_image_id = serializers.IntegerField(write_only=True, required=False, source='cover_image')
+    images = serializers.SerializerMethodField()
+    image_urls = serializers.SerializerMethodField()
+    category_names = serializers.SerializerMethodField()
+    categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True, required=False)
+
+    class Meta:
+        model = Album
+        fields = ['id', 'resource_id', 'title', 'description', 'cover_image', 'cover_image_id', 'images', 'image_urls', 'category_names', 'categories', 'author', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'resource_id', 'created_at', 'updated_at']
+
+    def _get_request(self):
+        """获取当前请求对象"""
+        return self.context.get('request')
+
+    def _build_media_url(self, path):
+        """将相对路径构建为完整URL"""
+        if path.startswith('http://') or path.startswith('https://'):
+            return path
+        # 规范化路径
+        if path.startswith('/media/'):
+            normalized_path = path
+        elif path.startswith('media/'):
+            normalized_path = '/' + path
+        else:
+            normalized_path = '/media/' + path
+        # 使用 request 构建完整 URL
+        request = self._get_request()
+        if request:
+            return request.build_absolute_uri(normalized_path)
+        return normalized_path
+
+    def get_cover_image(self, obj):
+        """获取封面图片URL（完整路径）"""
+        if obj.cover_image:
+            img_path = str(obj.cover_image.image_file)
+            return self._build_media_url(img_path)
+        return ''
+
+    def _format_image_path(self, image):
+        """格式化图片路径为完整URL"""
+        img_path = str(image.image_file)
+        return self._build_media_url(img_path)
+
+    def get_images(self, obj):
+        """获取按上传顺序排列的图片列表，兼容旧数据"""
+        # 先检查是否有 AlbumImage 排序记录
+        image_entries = obj.album_images.select_related('image').order_by('order')
+        if image_entries.exists():
+            # 有排序记录，按 order 返回
+            result = []
+            for entry in image_entries:
+                img = entry.image
+                result.append({
+                    'id': img.id,
+                    'resource_id': img.resource_id,
+                    'title': img.title,
+                    'path': self._format_image_path(img),
+                    'order': entry.order
+                })
+            return result
+        else:
+            # 旧数据没有排序记录，直接返回 M2M 数据
+            result = []
+            for idx, img in enumerate(obj.images.all()):
+                result.append({
+                    'id': img.id,
+                    'resource_id': img.resource_id,
+                    'title': img.title,
+                    'path': self._format_image_path(img),
+                    'order': idx
+                })
+            return result
+
+    def get_image_urls(self, obj):
+        """获取按上传顺序排列的图片URL列表"""
+        urls = []
+        image_entries = obj.album_images.select_related('image').order_by('order')
+        if image_entries.exists():
+            for entry in image_entries:
+                urls.append(self._format_image_path(entry.image))
+        else:
+            for img in obj.images.all():
+                urls.append(self._format_image_path(img))
+        return urls
+
+    def get_category_names(self, obj):
+        """获取标签名称列表"""
+        return [category.name for category in obj.categories.all()]
+
+    def create(self, validated_data):
+        """创建图集"""
+        cover_image_data = validated_data.pop('cover_image', None)
+        categories = validated_data.pop('categories', [])
+        
+        if cover_image_data and isinstance(cover_image_data, int):
+            try:
+                validated_data['cover_image'] = Image.objects.get(id=cover_image_data)
+            except Image.DoesNotExist:
+                validated_data['cover_image'] = None
+        
+        album = super().create(validated_data)
+        
+        if categories:
+            album.categories.set(categories)
+        
+        return album
+
+    def update(self, instance, validated_data):
+        """更新图集"""
+        cover_image_data = validated_data.pop('cover_image', None)
+        categories = validated_data.pop('categories', [])
+        
+        if cover_image_data and isinstance(cover_image_data, int):
+            try:
+                validated_data['cover_image'] = Image.objects.get(id=cover_image_data)
+            except Image.DoesNotExist:
+                validated_data['cover_image'] = None
+        
+        instance = super().update(instance, validated_data)
+        
+        if categories:
+            instance.categories.set(categories)
+        
+        return instance
+
 class ComicChapterSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
@@ -83,18 +276,8 @@ class ComicChapterReadSerializer(serializers.ModelSerializer):
     def get_images(self, obj):
         if not obj.images:
             return []
-        result = []
-        for img_path in obj.images:
-            img_path = str(img_path)
-            if img_path.startswith('http://') or img_path.startswith('https://'):
-                result.append(img_path)
-            elif img_path.startswith('/media/'):
-                result.append(img_path)
-            elif img_path.startswith('media/'):
-                result.append('/' + img_path)
-            else:
-                result.append('/media/' + img_path)
-        return result
+        request = self.context.get('request')
+        return [build_media_url(request, p) for p in obj.images]
 
 class ComicListSerializer(serializers.ModelSerializer):
     category_names = serializers.SerializerMethodField()
@@ -103,32 +286,19 @@ class ComicListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comic
-        fields = ['id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'categories', 'author', 'created_at']
+        fields = ['id', 'resource_id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'categories', 'author', 'created_at']
 
     def get_cover_image(self, obj):
+        request = self.context.get('request')
         if obj.cover_image:
-            cover_path = str(obj.cover_image)
-            if cover_path.startswith('http://') or cover_path.startswith('https://'):
-                return cover_path
-            if cover_path.startswith('/media/'):
-                return cover_path
-            if cover_path.startswith('media/'):
-                return '/' + cover_path
-            return '/media/' + cover_path
+            return build_media_url(request, obj.cover_image)
         chapters = obj.chapters.all()
         if chapters:
             first_chapter = chapters.first()
             if first_chapter.images:
                 for img_path in first_chapter.images:
                     if img_path:
-                        img_path_str = str(img_path)
-                        if img_path_str.startswith('http://') or img_path_str.startswith('https://'):
-                            return img_path_str
-                        if img_path_str.startswith('/media/'):
-                            return img_path_str
-                        if img_path_str.startswith('media/'):
-                            return '/' + img_path_str
-                        return '/media/' + img_path_str
+                        return build_media_url(request, img_path)
         return ''
 
     def get_category_names(self, obj):
@@ -145,33 +315,19 @@ class ComicDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comic
-        fields = ['id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'categories', 'author', 'chapters', 'created_at', 'updated_at']
+        fields = ['id', 'resource_id', 'title', 'slug', 'description', 'cover_image', 'category_names', 'categories', 'author', 'chapters', 'created_at', 'updated_at']
 
     def get_cover_image(self, obj):
+        request = self.context.get('request')
         if obj.cover_image:
-            cover_path = str(obj.cover_image)
-            if cover_path.startswith('http://') or cover_path.startswith('https://'):
-                return cover_path
-            if cover_path.startswith('/media/'):
-                return cover_path
-            if cover_path.startswith('media/'):
-                return '/' + cover_path
-            return '/media/' + cover_path
-        # 当没有封面图片时，使用章节图片中的第一章作为封面
+            return build_media_url(request, obj.cover_image)
         chapters = obj.chapters.all()
         if chapters:
             first_chapter = chapters.first()
             if first_chapter.images:
                 for img_path in first_chapter.images:
                     if img_path:
-                        img_path_str = str(img_path)
-                        if img_path_str.startswith('http://') or img_path_str.startswith('https://'):
-                            return img_path_str
-                        if img_path_str.startswith('/media/'):
-                            return img_path_str
-                        if img_path_str.startswith('media/'):
-                            return '/' + img_path_str
-                        return '/media/' + img_path_str
+                        return build_media_url(request, img_path)
         return ''
 
     def get_category_names(self, obj):
@@ -184,13 +340,12 @@ class ComicCreateUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comic
-        fields = ['title', 'slug', 'description', 'cover_image', 'categories', 'author', 'chapters']
+        fields = ['resource_id', 'title', 'slug', 'description', 'cover_image', 'categories', 'author', 'chapters']
 
     def create(self, validated_data):
         chapters_data = validated_data.pop('chapters', [])
         categories = validated_data.pop('categories', [])
 
-        # 处理封面图片路径
         cover_image_path = validated_data.pop('cover_image', None)
         if cover_image_path:
             if cover_image_path.startswith('/media/'):
@@ -201,11 +356,9 @@ class ComicCreateUpdateSerializer(serializers.ModelSerializer):
 
         comic = super().create(validated_data)
         
-        # 设置分类
         if categories:
             comic.categories.set(categories)
         
-        # 创建章节
         for chapter_data in chapters_data:
             ComicChapter.objects.create(comic=comic, **chapter_data)
         
@@ -215,7 +368,6 @@ class ComicCreateUpdateSerializer(serializers.ModelSerializer):
         chapters_data = validated_data.pop('chapters', [])
         categories = validated_data.pop('categories', [])
 
-        # 处理封面图片路径
         cover_image_path = validated_data.pop('cover_image', None)
         if cover_image_path:
             if cover_image_path.startswith('/media/'):
@@ -226,15 +378,11 @@ class ComicCreateUpdateSerializer(serializers.ModelSerializer):
 
         instance = super().update(instance, validated_data)
         
-        # 设置分类
         if categories:
             instance.categories.set(categories)
         
-        # 更新章节
         if chapters_data:
-            # 删除旧章节
             instance.chapters.all().delete()
-            # 创建新章节
             for chapter_data in chapters_data:
                 ComicChapter.objects.create(comic=instance, **chapter_data)
         
@@ -248,31 +396,19 @@ class VideoListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ['id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'category_names', 'categories', 'created_at']
+        fields = ['id', 'resource_id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'm3u8_path', 'category_names', 'categories', 'duration', 'video_type', 'tags', 'created_at']
 
     def get_thumbnail(self, obj):
         if not obj.thumbnail:
             return ''
-        thumb_path = str(obj.thumbnail)
-        if thumb_path.startswith('http://') or thumb_path.startswith('https://'):
-            return thumb_path
-        if thumb_path.startswith('/media/'):
-            return thumb_path
-        if thumb_path.startswith('media/'):
-            return '/' + thumb_path
-        return '/media/' + thumb_path
+        request = self.context.get('request')
+        return build_media_url(request, obj.thumbnail)
 
     def get_video_file(self, obj):
         if not obj.video_file:
             return ''
-        video_path = str(obj.video_file)
-        if video_path.startswith('http://') or video_path.startswith('https://'):
-            return video_path
-        if video_path.startswith('/media/'):
-            return video_path
-        if video_path.startswith('media/'):
-            return '/' + video_path
-        return '/media/' + video_path
+        request = self.context.get('request')
+        return build_media_url(request, obj.video_file)
 
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]
@@ -282,12 +418,12 @@ class VideoListSerializer(serializers.ModelSerializer):
 
 class VideoCreateUpdateSerializer(serializers.ModelSerializer):
     categories = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), many=True)
-    thumbnail = serializers.CharField(required=False, allow_blank=True, max_length=100)
-    video_file = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    thumbnail = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    video_file = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
     class Meta:
         model = Video
-        fields = ['title', 'slug', 'description', 'thumbnail', 'video_file', 'categories']
+        fields = ['resource_id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'm3u8_path', 'categories', 'duration', 'video_type', 'tags']
 
     def _convert_path_to_file(self, file_path):
         import os
@@ -349,31 +485,19 @@ class VideoDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ['id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'category_names', 'categories', 'duration', 'created_at', 'updated_at']
+        fields = ['id', 'resource_id', 'title', 'slug', 'description', 'thumbnail', 'video_file', 'm3u8_path', 'category_names', 'categories', 'duration', 'video_type', 'tags', 'created_at', 'updated_at']
 
     def get_thumbnail(self, obj):
         if not obj.thumbnail:
             return ''
-        thumb_path = str(obj.thumbnail)
-        if thumb_path.startswith('http://') or thumb_path.startswith('https://'):
-            return thumb_path
-        if thumb_path.startswith('/media/'):
-            return thumb_path
-        if thumb_path.startswith('media/'):
-            return '/' + thumb_path
-        return '/media/' + thumb_path
+        request = self.context.get('request')
+        return build_media_url(request, obj.thumbnail)
 
     def get_video_file(self, obj):
         if not obj.video_file:
             return ''
-        video_path = str(obj.video_file)
-        if video_path.startswith('http://') or video_path.startswith('https://'):
-            return video_path
-        if video_path.startswith('/media/'):
-            return video_path
-        if video_path.startswith('media/'):
-            return '/' + video_path
-        return '/media/' + video_path
+        request = self.context.get('request')
+        return build_media_url(request, obj.video_file)
 
     def get_category_names(self, obj):
         return [category.name for category in obj.categories.all()]

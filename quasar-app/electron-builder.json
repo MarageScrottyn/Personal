@@ -1,0 +1,30 @@
+{
+  "appId": "com.personal.app",
+  "productName": "AggregationSpace",
+  "directories": {
+    "output": "electron-build-output"
+  },
+  "files": [
+    "dist/**/*",
+    "src-electron/**/*",
+    "package.json"
+  ],
+  "asarUnpack": [
+    "src-electron/**/*",
+    "src-electron/preload/**/*"
+  ],
+  "extraMetadata": {
+    "main": "src-electron/electron-main.js"
+  },
+  "win": {
+    "signAndEditExecutable": false,
+    "target": [
+      {
+        "target": "dir",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "publish": null
+}

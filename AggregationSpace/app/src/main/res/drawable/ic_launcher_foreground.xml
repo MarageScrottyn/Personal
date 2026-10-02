@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    应用图标前景 - 四个圆角方块聚合图案
+    代表"聚合空间"中聚合的多种内容类型：图片、漫画、视频、图集
+    四种颜色分别对应不同内容，体现"聚合"的概念
+    图案中心精确对齐 viewport 中心 (54,54)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 左上方块 - 白色，代表图片 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M32,28 h16 A4,4 0 0 1 52,32 v16 A4,4 0 0 1 48,52 h-16 A4,4 0 0 1 28,48 v-16 A4,4 0 0 1 32,28 z" />
+
+    <!-- 右上方块 - 浅蓝色，代表漫画 -->
+    <path
+        android:fillColor="#FF5AC8FA"
+        android:pathData="M60,28 h16 A4,4 0 0 1 80,32 v16 A4,4 0 0 1 76,52 h-16 A4,4 0 0 1 56,48 v-16 A4,4 0 0 1 60,28 z" />
+
+    <!-- 左下方块 - 绿色，代表视频 -->
+    <path
+        android:fillColor="#FF34C759"
+        android:pathData="M32,56 h16 A4,4 0 0 1 52,60 v16 A4,4 0 0 1 48,80 h-16 A4,4 0 0 1 28,76 v-16 A4,4 0 0 1 32,56 z" />
+
+    <!-- 右下方块 - 橙色，代表图集 -->
+    <path
+        android:fillColor="#FFFF9500"
+        android:pathData="M60,56 h16 A4,4 0 0 1 80,60 v16 A4,4 0 0 1 76,80 h-16 A4,4 0 0 1 56,76 v-16 A4,4 0 0 1 60,56 z" />
+</vector>

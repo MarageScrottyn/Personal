@@ -3,7 +3,7 @@
     <!-- 移动端导航栏 -->
     <div class="mobile-header" v-if="isMobile">
       <button class="menu-toggle" @click="toggleMenu">
-        <span class="menu-icon">{{ menuOpen ? '✕' : '☰' }}</span>
+        <i :class="menuOpen ? 'lucide lucide-x' : 'lucide lucide-menu'"></i>
       </button>
       <h1 class="mobile-title">{{ pageTitle }}</h1>
     </div>
@@ -11,28 +11,28 @@
     <!-- 侧边栏 -->
     <div class="admin-sidebar" :class="{ 'sidebar-open': menuOpen && isMobile }">
       <div class="admin-sidebar-header">
-        <span class="sidebar-icon">⚙️</span>
+        <i class="lucide lucide-settings"></i>
         <h2>管理中心</h2>
       </div>
       <div class="admin-sidebar-menu">
         <router-link to="/" :class="['sidebar-item', { active: $route.path === '/' }]" @click="closeMenuOnMobile">
-          <span class="item-icon">🏠</span>
+          <i class="lucide lucide-home"></i>
           <span>返回首页</span>
         </router-link>
         <router-link to="/admin" :class="['sidebar-item', { active: $route.path === '/admin' }]" @click="closeMenuOnMobile">
-          <span class="item-icon">📊</span>
+          <i class="lucide lucide-bar-chart-2"></i>
           <span>仪表盘</span>
         </router-link>
         <router-link to="/admin/comics" :class="['sidebar-item', { active: $route.path.startsWith('/admin/comics') }]" @click="closeMenuOnMobile">
-          <span class="item-icon">📚</span>
+          <i class="lucide lucide-book-open"></i>
           <span>漫画管理</span>
         </router-link>
         <router-link to="/admin/videos" :class="['sidebar-item', { active: $route.path.startsWith('/admin/videos') }]" @click="closeMenuOnMobile">
-          <span class="item-icon">🎥</span>
+          <i class="lucide lucide-play"></i>
           <span>视频管理</span>
         </router-link>
         <router-link to="/admin/categories" :class="['sidebar-item', { active: $route.path.startsWith('/admin/categories') }]" @click="closeMenuOnMobile">
-          <span class="item-icon">📁</span>
+          <i class="lucide lucide-folder"></i>
           <span>分类管理</span>
         </router-link>
       </div>
@@ -315,4 +315,30 @@ onUnmounted(() => {
     padding: 30px;
   }
 }
+
+/* Lucide icons base styles */
+.lucide {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+}
+
+.menu-toggle .lucide {
+  width: 24px;
+  height: 24px;
+}
+
+.admin-sidebar-header .lucide {
+  width: 24px;
+  height: 24px;
+}
+
+.sidebar-item .lucide {
+  width: 16px;
+  height: 16px;
+}
+
 </style>

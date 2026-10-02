@@ -98,7 +98,7 @@
         <div class="sheet-section">
           <div class="section-toggle" @click="mobileShowPassword = !mobileShowPassword">
             <h4>修改密码</h4>
-            <span class="toggle-icon">{{ mobileShowPassword ? '▲' : '▼' }}</span>
+            <span class="toggle-icon" :class="mobileShowPassword ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="mobileShowPassword" class="section-content">
             <form @submit.prevent="changePassword">
@@ -120,7 +120,7 @@
         <div v-if="authStore.isAdmin" class="sheet-section">
           <div class="section-toggle" @click="mobileShowPermissions = !mobileShowPermissions">
             <h4>账户权限管理</h4>
-            <span class="toggle-icon">{{ mobileShowPermissions ? '▲' : '▼' }}</span>
+            <span class="toggle-icon" :class="mobileShowPermissions ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="mobileShowPermissions" class="section-content">
             <div class="user-list-mobile">
@@ -139,7 +139,7 @@
         <div v-if="authStore.isAdmin" class="sheet-section">
           <div class="section-toggle" @click="mobileShowResetPassword = !mobileShowResetPassword">
             <h4>重置用户密码</h4>
-            <span class="toggle-icon">{{ mobileShowResetPassword ? '▲' : '▼' }}</span>
+            <span class="toggle-icon" :class="mobileShowResetPassword ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="mobileShowResetPassword" class="section-content">
             <form @submit.prevent="resetUserPassword">
@@ -195,7 +195,7 @@
         <div class="settings-section">
           <div class="settings-toggle" @click="showPasswordSection = !showPasswordSection">
             <h4>修改密码</h4>
-            <span class="toggle-arrow">{{ showPasswordSection ? '▲' : '▼' }}</span>
+            <span class="toggle-arrow" :class="showPasswordSection ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="showPasswordSection" class="settings-content">
             <form @submit.prevent="changePassword">
@@ -220,7 +220,7 @@
         <div v-if="authStore.isAdmin" class="settings-section">
           <div class="settings-toggle" @click="showPermissionsSection = !showPermissionsSection">
             <h4>账户权限管理</h4>
-            <span class="toggle-arrow">{{ showPermissionsSection ? '▲' : '▼' }}</span>
+            <span class="toggle-arrow" :class="showPermissionsSection ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="showPermissionsSection" class="settings-content">
             <div class="user-list">
@@ -239,7 +239,7 @@
         <div v-if="authStore.isAdmin" class="settings-section">
           <div class="settings-toggle" @click="showResetSection = !showResetSection">
             <h4>重置用户密码</h4>
-            <span class="toggle-arrow">{{ showResetSection ? '▲' : '▼' }}</span>
+            <span class="toggle-arrow" :class="showResetSection ? 'up-icon' : 'down-icon'"></span>
           </div>
           <div v-if="showResetSection" class="settings-content">
             <form @submit.prevent="resetUserPassword">
@@ -653,12 +653,18 @@ const resetUserPassword = async () => {
 }
 
 .mobile-nav-scroll {
+  display: -webkit-box;
+  display: -webkit-flex;
   display: flex;
+  -webkit-overflow-scrolling: touch;
   overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
   padding: 8px 12px;
-  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   scrollbar-width: none;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .mobile-nav-scroll::-webkit-scrollbar {
@@ -1341,4 +1347,34 @@ const resetUserPassword = async () => {
     font-size: 12px;
   }
 }
+
+/* Arrow icons */
+.toggle-icon,
+.toggle-arrow {
+  font-size: 0;
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.up-icon::after,
+.down-icon::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.up-icon::after {
+  border-width: 0 5px 6px 5px;
+  border-color: transparent transparent #666 transparent;
+}
+
+.down-icon::after {
+  border-width: 6px 5px 0 5px;
+  border-color: #666 transparent transparent transparent;
+}
+
 </style>

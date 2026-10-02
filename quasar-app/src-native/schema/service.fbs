@@ -1,0 +1,132 @@
+namespace NativeService;
+
+enum ActionType : uint8 {
+    ACTION_NONE = 0,
+    ACTION_GET_CPU = 1,
+    ACTION_GET_MEMORY = 2,
+    ACTION_GET_BATTERY = 3,
+    ACTION_GET_VOLUME = 4,
+    ACTION_GET_MEDIA = 5,
+    ACTION_GET_ALL = 6,
+    ACTION_PING = 7,
+    ACTION_STOP = 8,
+    
+    ACTION_GET_PINNED_APPS = 20,
+    ACTION_EXTRACT_ICON = 21,
+    ACTION_PARSE_LNK = 22,
+    ACTION_WATCH_TASKBAR_DIR = 23,
+    ACTION_HIDE_SYSTEM_TASKBAR = 24,
+    ACTION_SHOW_SYSTEM_TASKBAR = 25
+}
+
+enum ResponseStatus : uint8 {
+    STATUS_OK = 0,
+    STATUS_ERROR = 1
+}
+
+table CPUInfo {
+    usage: float;
+}
+
+table MemoryInfo {
+    total: ulong;
+    available: ulong;
+    used: ulong;
+    usage: float;
+}
+
+table BatteryInfo {
+    acOnline: bool;
+    batteryPresent: bool;
+    batteryLifePercent: uint8;
+    batteryLifeTime: int;
+    batteryFullLifeTime: int;
+}
+
+table VolumeInfo {
+    level: float;
+    muted: bool;
+}
+
+table MediaInfo {
+    title: string;
+    artist: string;
+    albumTitle: string;
+    albumArtist: string;
+    playing: bool;
+    position: double;
+    duration: double;
+}
+
+table PinnedAppInfo {
+    id: string;
+    name: string;
+    path: string;
+    iconData: string;
+    iconWidth: uint16;
+    iconHeight: uint16;
+}
+
+table PinnedAppsResponse {
+    apps: [PinnedAppInfo];
+}
+
+table IconExtractRequest {
+    filePath: string;
+    iconSize: uint16;
+}
+
+table IconExtractResponse {
+    iconData: string;
+    width: uint16;
+    height: uint16;
+    success: bool;
+}
+
+table LnkParseRequest {
+    lnkPath: string;
+}
+
+table LnkParseResponse {
+    targetPath: string;
+    arguments: string;
+    workingDirectory: string;
+    description: string;
+    iconPath: string;
+    iconIndex: int;
+    success: bool;
+}
+
+table Request {
+    id: uint32;
+    action: ActionType;
+    iconRequest: IconExtractRequest;
+    lnkRequest: LnkParseRequest;
+}
+
+table Response {
+    id: uint32;
+    status: ResponseStatus;
+    errorMessage: string;
+    
+    cpu: CPUInfo;
+    memory: MemoryInfo;
+    battery: BatteryInfo;
+    volume: VolumeInfo;
+    media: MediaInfo;
+    
+    pinnedApps: PinnedAppsResponse;
+    iconResponse: IconExtractResponse;
+    lnkResponse: LnkParseResponse;
+}
+
+union Message {
+    Request,
+    Response
+}
+
+table MessageWrapper {
+    message_type: Message;
+}
+
+root_type MessageWrapper;

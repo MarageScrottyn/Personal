@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div id="content-main">
+    <h1>📤 批量上传图片</h1>
+    <p style="color: #666; margin-bottom: 20px;">
+        选择多张图片并分配标签，支持并行上传，保留原画质
+    </p>
+
+    <form method="post" enctype="multipart/form-data" id="batch_upload_form">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+            <h3 style="margin-top: 0;">1. 选择图片</h3>
+            <input type="file" id="file_input" name="images" multiple accept="image/*" style="font-size: 14px; padding: 8px;">
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+            <h3 style="margin-top: 0;">2. 分配标签（可选）</h3>
+            <p style="color: #888; font-size: 13px;">为所有上传的图片选择一个或多个标签</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px;">
+                {% for cat in categories %}
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 12px; background: #fff; border: 1px solid #ddd; border-radius: 20px; font-size: 13px;">
+                    <input type="checkbox" name="category_checkbox" value="{{ cat.id }}" style="cursor: pointer;">
+                    {{ cat.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+            <h3 style="margin-top: 0;">3. 标题前缀（可选）</h3>
+            <input type="text" id="title_prefix" placeholder="例如: 标签图片" style="padding: 8px 12px; width: 300px; border: 1px solid #ddd; border-radius: 4px;">
+            <p style="color: #888; font-size: 13px; margin-top: 5px;">标题将自动生成为 "前缀1", "前缀2", ...</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <button type="button" onclick="startBatchUpload()" style="padding: 14px 36px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                🚀 开始上传
+            </button>
+        </div>
+
+        <div id="upload_progress" style="margin-top: 20px;"></div>
+        <div id="upload_result" style="margin-top: 10px;"></div>
+    </form>
+</div>
+
+{{ batch_upload_script|safe }}
+{% endblock %}

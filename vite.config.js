@@ -14,12 +14,12 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.21:8000',
+        target: 'https://marage.ccwu.cc',
         changeOrigin: true,
         secure: false
       },
       '/media': {
-        target: 'http://192.168.0.21:8000',
+        target: 'https://marage.ccwu.cc',
         changeOrigin: true,
         secure: false
       }

@@ -35,7 +35,7 @@
         @click="handleFileClick(file)"
       >
         <div class="file-icon">
-          {{ file.file_type === 'folder' ? '📁' : getFileIcon(file.name) }}
+          <i v-if="file.file_type === 'folder'" class="lucide lucide-folder"></i><span v-else>{{ getFileIcon(file.name) }}</span>
         </div>
         <div class="file-info">
           <div class="file-name">{{ file.name }}</div>
@@ -483,4 +483,5 @@ onMounted(() => {
     gap: 4px;
   }
 }
+
 </style>

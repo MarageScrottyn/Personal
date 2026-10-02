@@ -111,7 +111,7 @@
             <button @click="insertFormat('`', '`')" title="行内代码">code</button>
             <button @click="insertFormat('\n```\n', '\n```\n')" title="代码块">&lt;/&gt;</button>
             <span class="toolbar-divider">|</span>
-            <button @click="insertFormat('[', '](url)')" title="链接">🔗</button>
+            <button @click="insertFormat('[', '](url)')" title="链接"><i class="lucide lucide-link"></i></button>
           </div>
           <textarea
             ref="textareaRef"
@@ -889,4 +889,5 @@ onMounted(fetchNotes)
     justify-content: center;
   }
 }
+
 </style>

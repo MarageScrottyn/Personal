@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <color name="flora_base">#1a1a1a</color>
+    <color name="flora_base_light">#252525</color>
+    <color name="flora_base_dark">#121212</color>
+    <color name="flora_leaf">#9bc85a</color>
+    <color name="flora_leaf_dark">#7ba938</color>
+    <color name="flora_leaf_light">#b8dc7c</color>
+    <color name="flora_bloom">#d88a8a</color>
+    <color name="flora_bloom_dark">#c46a6a</color>
+    <color name="flora_bloom_light">#e9a9a9</color>
+    <color name="flora_stem">#c4b4a8</color>
+    <color name="flora_stem_light">#e0d8d0</color>
+    <color name="flora_shadow">#1fe0d8d0</color>
+    <color name="flora_shadow_dark">#2ae0d8d0</color>
+    <color name="flora_glow">#0fb8dc7c</color>
+    <color name="flora_glow_strong">#15b8dc7c</color>
+    
+    <color name="text_primary">#e0d8d0</color>
+</resources>

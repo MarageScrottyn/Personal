@@ -18,6 +18,8 @@
               :src="getVideoUrl(video.video_file)"
               autoplay
               preload="auto"
+              playsinline
+              disablePictureInPicture
               @error="handleVideoError"
               @timeupdate="handleTimeUpdate"
               @loadedmetadata="handleLoadedMetadata"
@@ -37,7 +39,7 @@
             <div class="custom-controls" :class="{ hidden: hideControls && isPlaying }">
               <!-- 播放/暂停按钮 -->
               <button class="control-btn play-btn" @click="togglePlay">
-                <span>{{ isPlaying ? '⏸' : '▶' }}</span>
+                <span :class="isPlaying ? 'pause-icon' : 'play-icon'"></span>
               </button>
               
               <!-- 进度条和时间 -->
@@ -73,7 +75,7 @@
               
               <!-- 全屏按钮 -->
               <button class="control-btn fullscreen-btn" @click="toggleFullscreen">
-                <span>{{ isFullscreen ? '⛶' : '⛶' }}</span>
+                <span :class="isFullscreen ? 'exit-fullscreen-icon' : 'fullscreen-icon'"></span>
               </button>
             </div>
             
@@ -97,10 +99,7 @@
                 {{ category }}
               </span>
             </div>
-            <span class="meta-item">
-              <span class="meta-icon">⏱️</span>
-              {{ formatDuration(video.duration) }}
-            </span>
+
           </div>
           <p class="video-desc">{{ video.description }}</p>
         </div>
@@ -1022,6 +1021,14 @@ const fetchCategories = async () => {
   outline: none;
 }
 
+.video-player video::-webkit-media-controls {
+  display: none !important;
+}
+
+.video-player video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
 .custom-controls {
   position: absolute;
   bottom: 0;
@@ -1060,7 +1067,162 @@ const fetchCategories = async () => {
 }
 
 .play-btn {
-  font-size: 18px;
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-icon {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 7px 0 7px 12px;
+  border-color: transparent transparent transparent #fff;
+  margin-left: 2px;
+}
+
+.pause-icon {
+  display: flex;
+  gap: 4px;
+}
+
+.pause-icon::before,
+.pause-icon::after {
+  content: '';
+  width: 4px;
+  height: 14px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.volume-btn {
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.volume-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+}
+
+.volume-icon::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 6px;
+  height: 10px;
+  background: #fff;
+  border-radius: 3px 0 0 3px;
+}
+
+.volume-icon::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 7px 0 7px 8px;
+  border-color: transparent transparent transparent #fff;
+}
+
+.mute-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+}
+
+.mute-icon::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 6px;
+  height: 10px;
+  background: #fff;
+  border-radius: 3px 0 0 3px;
+}
+
+.mute-icon::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: #fff;
+  transform: rotate(-45deg) translateY(-50%);
+}
+
+.fullscreen-btn {
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fullscreen-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+}
+
+.fullscreen-icon::before,
+.fullscreen-icon::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+}
+
+.fullscreen-icon::before {
+  top: 0;
+  left: 0;
+  border-right: none;
+  border-bottom: none;
+}
+
+.fullscreen-icon::after {
+  bottom: 0;
+  right: 0;
+  border-left: none;
+  border-top: none;
+}
+
+.exit-fullscreen-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+}
+
+.exit-fullscreen-icon::before,
+.exit-fullscreen-icon::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+}
+
+.exit-fullscreen-icon::before {
+  bottom: 0;
+  left: 0;
+  border-right: none;
+  border-top: none;
+}
+
+.exit-fullscreen-icon::after {
+  top: 0;
+  right: 0;
+  border-left: none;
+  border-bottom: none;
 }
 
 .progress-area {
@@ -1171,6 +1333,14 @@ const fetchCategories = async () => {
 
   .video-player video {
     max-height: 50vh;
+  }
+
+  .video-player video::-webkit-media-controls {
+    display: none !important;
+  }
+
+  .video-player video::-webkit-media-controls-enclosure {
+    display: none !important;
   }
 
   .custom-controls {

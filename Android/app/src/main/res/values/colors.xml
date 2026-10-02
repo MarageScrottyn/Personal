@@ -2,4 +2,22 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <color name="flora_base">#f9f4ed</color>
+    <color name="flora_base_light">#fdfbf7</color>
+    <color name="flora_base_dark">#f0ebe3</color>
+    <color name="flora_leaf">#7ba938</color>
+    <color name="flora_leaf_dark">#5c8a2a</color>
+    <color name="flora_leaf_light">#9bc85a</color>
+    <color name="flora_bloom">#e9a9a9</color>
+    <color name="flora_bloom_dark">#d88a8a</color>
+    <color name="flora_bloom_light">#f5d0d0</color>
+    <color name="flora_stem">#a38b7d</color>
+    <color name="flora_stem_light">#c4b4a8</color>
+    <color name="flora_shadow">#1fa38b7d</color>
+    <color name="flora_shadow_dark">#25a38b7d</color>
+    <color name="flora_glow">#08e9a9a9</color>
+    <color name="flora_glow_strong">#0fe9a9a9</color>
+    
+    <color name="text_primary">#4a4543</color>
 </resources>
