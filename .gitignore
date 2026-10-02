@@ -54,3 +54,12 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
+
+# 大文件：cloudflared 二进制与 Electron 构建产物不入库
+cloudflared/*.exe
+cloudflared/*.log
+quasar-app/electron-build-output/
+
+# SSH 私钥严禁入库（公钥允许）
+.ssh_key
+
